@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { authRoutes } from "./auth/routes";
 
 export function buildApp() {
   const app = Fastify({
@@ -15,6 +16,8 @@ export function buildApp() {
       status: "ok",
     };
   });
+
+  app.register(authRoutes);
 
   return app;
 }
