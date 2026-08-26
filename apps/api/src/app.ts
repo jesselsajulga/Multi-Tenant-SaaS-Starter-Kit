@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import { authRoutes } from "./auth/routes";
 import { organizationRoutes } from "./organizations/routes";
+import { memberRoutes } from "./members/routes";
 import { projectRoutes } from "./projects/routes";
 
 export function buildApp() {
@@ -24,6 +25,7 @@ export function buildApp() {
 
   app.register(authRoutes);
   app.register(organizationRoutes);
+  app.register(memberRoutes);
   app.register(projectRoutes);
 
   return app;
