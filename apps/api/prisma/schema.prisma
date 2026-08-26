@@ -42,8 +42,9 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members  OrganizationMember[]
-  projects Project[]
+  members      OrganizationMember[]
+  projects     Project[]
+  subscription Subscription?
 }
 
 model OrganizationMember {
@@ -70,4 +71,25 @@ model Project {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+}
+
+model Subscription {
+  id                   String    @id @default(uuid())
+  organizationId       String    @unique
+  stripeCustomerId     String    @unique
+  stripeSubscriptionId String?   @unique
+  plan                 String?
+  status               String?
+  currentPeriodEnd     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model StripeEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
 }
