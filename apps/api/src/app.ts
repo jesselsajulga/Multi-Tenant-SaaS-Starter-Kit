@@ -5,6 +5,11 @@ import { authRoutes } from "./auth/routes";
 import { organizationRoutes } from "./organizations/routes";
 import { memberRoutes } from "./members/routes";
 import { projectRoutes } from "./projects/routes";
+import { webhookRoutes } from "./webhooks/routes";
+import { billingRoutes } from "./billing/routes";
+import { invitationRoutes } from "./invitations/routes";
+
+import rawBody from "fastify-raw-body";
 
 export function buildApp() {
   const app = Fastify({
@@ -13,6 +18,14 @@ export function buildApp() {
 
   app.register(cors, {
     origin: true,
+  });
+
+  // Enable raw body for stripe webhook signatures
+  app.register(rawBody, {
+    field: "rawBody", 
+    global: false, 
+    encoding: "utf8", 
+    runFirst: true 
   });
 
   app.get("/health", async () => {
@@ -27,6 +40,9 @@ export function buildApp() {
   app.register(organizationRoutes);
   app.register(memberRoutes);
   app.register(projectRoutes);
+  app.register(webhookRoutes);
+  app.register(billingRoutes);
+  app.register(invitationRoutes);
 
   return app;
 }
