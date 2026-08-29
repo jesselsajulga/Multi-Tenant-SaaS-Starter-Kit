@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { authenticateRequest } from "../auth/authenticate";
 import { authorizeOrganizationAccess } from "../auth/authorize";
-import { createInvitationSchema } from "./schema";
+import { createInvitationSchema, processInvitationSchema } from "./schema";
 import crypto from "crypto";
 
 export async function invitationRoutes(app: FastifyInstance) {
@@ -158,5 +158,121 @@ export async function invitationRoutes(app: FastifyInstance) {
     });
 
     return reply.status(200).send({ message: "Invitation revoked", invitation: updated });
+  });
+
+  // POST /invitations/accept
+  app.post("/invitations/accept", async (request, reply) => {
+    const auth = await authenticateRequest(request);
+    if (!auth) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const result = processInvitationSchema.safeParse(request.body);
+    if (!result.success) {
+      return reply.status(400).send({ error: "Invalid request data", details: result.error.flatten() });
+    }
+
+    const { token } = result.data;
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const invitation = await prisma.organizationInvitation.findUnique({
+      where: { tokenHash }
+    });
+
+    if (!invitation) {
+      return reply.status(404).send({ error: "Invitation not found or invalid" });
+    }
+
+    if (invitation.status !== "PENDING") {
+      return reply.status(409).send({ error: "Invitation is no longer pending" });
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      return reply.status(409).send({ error: "Invitation has expired" });
+    }
+
+    if (invitation.email !== auth.user.email) {
+      return reply.status(403).send({ error: "Invitation email does not match authenticated user" });
+    }
+
+    // Check if already a member
+    const existingMembership = await prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: invitation.organizationId,
+          userId: auth.user.id,
+        }
+      }
+    });
+
+    if (existingMembership) {
+      return reply.status(409).send({ error: "You are already a member of this organization" });
+    }
+
+    // Atomic transaction
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.organizationInvitation.update({
+          where: { id: invitation.id },
+          data: { status: "ACCEPTED" }
+        });
+
+        await tx.organizationMember.create({
+          data: {
+            organizationId: invitation.organizationId,
+            userId: auth.user.id,
+            role: "MEMBER" // as per phase 4.2.1 hardcoding, invitations grant MEMBER
+          }
+        });
+      });
+
+      return reply.status(200).send({ message: "Invitation accepted successfully" });
+    } catch (error) {
+      return reply.status(500).send({ error: "Failed to accept invitation" });
+    }
+  });
+
+  // POST /invitations/reject
+  app.post("/invitations/reject", async (request, reply) => {
+    const auth = await authenticateRequest(request);
+    if (!auth) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const result = processInvitationSchema.safeParse(request.body);
+    if (!result.success) {
+      return reply.status(400).send({ error: "Invalid request data", details: result.error.flatten() });
+    }
+
+    const { token } = result.data;
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const invitation = await prisma.organizationInvitation.findUnique({
+      where: { tokenHash }
+    });
+
+    if (!invitation) {
+      return reply.status(404).send({ error: "Invitation not found or invalid" });
+    }
+
+    if (invitation.status !== "PENDING") {
+      return reply.status(409).send({ error: "Invitation is no longer pending" });
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      return reply.status(409).send({ error: "Invitation has expired" });
+    }
+
+    if (invitation.email !== auth.user.email) {
+      return reply.status(403).send({ error: "Invitation email does not match authenticated user" });
+    }
+
+    const updated = await prisma.organizationInvitation.update({
+      where: { id: invitation.id },
+      data: { status: "REJECTED" },
+      select: { id: true, status: true }
+    });
+
+    return reply.status(200).send({ message: "Invitation rejected", invitation: updated });
   });
 }

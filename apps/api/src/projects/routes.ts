@@ -6,7 +6,7 @@ import { prisma, getTenantPrisma } from "../db";
 async function verifyTenantAccess(request: FastifyRequest, userId: string) {
   const orgId = request.headers["x-organization-id"] as string;
   if (!orgId) {
-    return { error: "Missing x-organization-id header", status: 400 };
+    return { error: "Missing x-organization-id header", status: 400, orgId: undefined, tenantPrisma: undefined };
   }
 
   const membership = await prisma.organizationMember.findUnique({
@@ -19,10 +19,10 @@ async function verifyTenantAccess(request: FastifyRequest, userId: string) {
   });
 
   if (!membership) {
-    return { error: "Forbidden", status: 403 };
+    return { error: "Forbidden", status: 403, orgId: undefined, tenantPrisma: undefined };
   }
 
-  return { orgId, tenantPrisma: getTenantPrisma(orgId) };
+  return { error: undefined, status: undefined, orgId, tenantPrisma: getTenantPrisma(orgId) };
 }
 
 export async function projectRoutes(app: FastifyInstance) {
@@ -34,8 +34,8 @@ export async function projectRoutes(app: FastifyInstance) {
     }
 
     const access = await verifyTenantAccess(request, auth.user.id);
-    if (access.error) {
-      return reply.status(access.status).send({ error: access.error });
+    if (access.error || !access.tenantPrisma || !access.orgId) {
+      return reply.status(access.status || 400).send({ error: access.error });
     }
 
     const result = createProjectSchema.safeParse(request.body);
@@ -61,8 +61,8 @@ export async function projectRoutes(app: FastifyInstance) {
     }
 
     const access = await verifyTenantAccess(request, auth.user.id);
-    if (access.error) {
-      return reply.status(access.status).send({ error: access.error });
+    if (access.error || !access.tenantPrisma) {
+      return reply.status(access.status || 400).send({ error: access.error });
     }
 
     // RLS handles the filtering automatically
@@ -81,8 +81,8 @@ export async function projectRoutes(app: FastifyInstance) {
     }
 
     const access = await verifyTenantAccess(request, auth.user.id);
-    if (access.error) {
-      return reply.status(access.status).send({ error: access.error });
+    if (access.error || !access.tenantPrisma) {
+      return reply.status(access.status || 400).send({ error: access.error });
     }
 
     const { id } = request.params as { id: string };
@@ -106,8 +106,8 @@ export async function projectRoutes(app: FastifyInstance) {
     }
 
     const access = await verifyTenantAccess(request, auth.user.id);
-    if (access.error) {
-      return reply.status(access.status).send({ error: access.error });
+    if (access.error || !access.tenantPrisma) {
+      return reply.status(access.status || 400).send({ error: access.error });
     }
 
     const { id } = request.params as { id: string };
@@ -141,8 +141,8 @@ export async function projectRoutes(app: FastifyInstance) {
     }
 
     const access = await verifyTenantAccess(request, auth.user.id);
-    if (access.error) {
-      return reply.status(access.status).send({ error: access.error });
+    if (access.error || !access.tenantPrisma) {
+      return reply.status(access.status || 400).send({ error: access.error });
     }
 
     const { id } = request.params as { id: string };

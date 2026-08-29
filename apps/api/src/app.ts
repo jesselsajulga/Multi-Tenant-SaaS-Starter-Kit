@@ -8,6 +8,8 @@ import { projectRoutes } from "./projects/routes";
 import { webhookRoutes } from "./webhooks/routes";
 import { billingRoutes } from "./billing/routes";
 import { invitationRoutes } from "./invitations/routes";
+import { auditRoutes } from "./audit/routes";
+import { featureFlagsRoutes } from "./feature-flags/routes";
 
 import rawBody from "fastify-raw-body";
 
@@ -40,9 +42,11 @@ export function buildApp() {
   app.register(organizationRoutes);
   app.register(memberRoutes);
   app.register(projectRoutes);
-  app.register(webhookRoutes);
-  app.register(billingRoutes);
   app.register(invitationRoutes);
+  app.register(billingRoutes);
+  app.register(webhookRoutes);
+  app.register(auditRoutes);
+  app.register(featureFlagsRoutes);
 
   return app;
 }

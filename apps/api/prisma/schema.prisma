@@ -22,6 +22,7 @@ model User {
   sessions        Session[]
   memberships     OrganizationMember[]
   invitationsSent OrganizationInvitation[]
+  auditLogs       AuditLog[]
 }
 
 model Session {
@@ -47,6 +48,8 @@ model Organization {
   projects     Project[]
   subscription Subscription?
   invitations  OrganizationInvitation[]
+  auditLogs    AuditLog[]
+  featureFlags FeatureFlag[]
 }
 
 model OrganizationMember {
@@ -115,4 +118,45 @@ model OrganizationInvitation {
   @@index([organizationId])
   @@index([expiresAt])
   @@index([email])
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String
+  
+  // Actor
+  actorId        String?  
+  actor          User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  
+  // Action
+  action         String   // e.g., "PROJECT_CREATED", "MEMBER_INVITED"
+  
+  // Resource
+  resourceType   String   // e.g., "Project", "OrganizationMember", "Subscription"
+  resourceId     String   // The UUID of the resource
+  
+  // Context
+  metadata       Json?    // Snapshot data (must include actor details for user events)
+  createdAt      DateTime @default(now())
+
+  // Restrict hard-deletion to preserve audit history
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model FeatureFlag {
+  id             String       @id @default(uuid())
+  organizationId String
+  key            String
+  enabled        Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
 }

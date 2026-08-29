@@ -1,0 +1,1 @@
+GRANT SELECT, INSERT ON "AuditLog" TO app_user;
