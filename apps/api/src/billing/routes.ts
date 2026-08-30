@@ -4,6 +4,7 @@ import { authorizeOrganizationAccess } from "../auth/authorize";
 import { checkoutSchema } from "./schema";
 import { prisma } from "../db";
 import { stripe } from "../stripe/client";
+import { getOrganizationUsage } from "./usage-read";
 
 export async function billingRoutes(app: FastifyInstance) {
   app.post("/organizations/:organizationId/billing/checkout", async (request, reply) => {
@@ -135,6 +136,50 @@ export async function billingRoutes(app: FastifyInstance) {
       return reply.status(200).send({ url: session.url });
     } catch (err: any) {
       app.log.error(`Failed to create Stripe billing portal session: ${err.message}`);
+      return reply.status(500).send({ error: "Internal Server Error" });
+    }
+  });
+
+  app.get("/organizations/:organizationId/billing/usage", async (request, reply) => {
+    // 1. Authenticate user
+    const auth = await authenticateRequest(request);
+    if (!auth) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    // 2. Authorize organization + role
+    const { organizationId } = request.params as { organizationId: string };
+    // Require OWNER to view billing usage
+    const authz = await authorizeOrganizationAccess(organizationId, auth.user.id, "OWNER");
+    if (authz.error) {
+      return reply.status(authz.status).send({ error: authz.error });
+    }
+
+    const query = request.query as { startDate?: string; endDate?: string; metric?: string };
+
+    // 3. Resolve Date Boundaries
+    // Default to last 30 days if not provided
+    const endDate = query.endDate ? new Date(query.endDate) : new Date();
+    const startDate = query.startDate ? new Date(query.startDate) : new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return reply.status(400).send({ error: "Invalid date format" });
+    }
+    if (startDate >= endDate) {
+      return reply.status(400).send({ error: "startDate must be before endDate" });
+    }
+
+    try {
+      const usageReport = await getOrganizationUsage({
+        organizationId,
+        startDate,
+        endDate,
+        metric: query.metric
+      });
+
+      return reply.status(200).send(usageReport);
+    } catch (err: any) {
+      app.log.error(`Failed to retrieve usage report: ${err.message}`);
       return reply.status(500).send({ error: "Internal Server Error" });
     }
   });

@@ -50,6 +50,8 @@ model Organization {
   invitations  OrganizationInvitation[]
   auditLogs    AuditLog[]
   featureFlags FeatureFlag[]
+  usageEvents  UsageEvent[]
+  usageSyncLogs UsageSyncLog[]
 }
 
 model OrganizationMember {
@@ -159,4 +161,48 @@ model FeatureFlag {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, key])
+}
+
+model UsageEvent {
+  id             String   @id @default(uuid())
+  organizationId String
+
+  metric         String   // Base-unit string (e.g. STORAGE_MB)
+  quantity       Int      // Integer quantity
+
+  occurredAt     DateTime? // Optional: when consumption actually happened
+  createdAt      DateTime @default(now()) // Immutable ledger position
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, metric, createdAt, id])
+}
+
+enum UsageSyncStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model UsageSyncLog {
+  id              String   @id @default(uuid())
+  organizationId  String
+
+  metric          String
+  syncedThroughTimestamp DateTime
+  syncedThroughId        String
+  
+  quantity        Int      // The delta being reported in this submission
+  
+  status          UsageSyncStatus   @default(PENDING)
+  idempotencyKey  String   @unique
+  stripeMeterEventId String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, metric, syncedThroughTimestamp, syncedThroughId])
+  @@index([status])
 }
