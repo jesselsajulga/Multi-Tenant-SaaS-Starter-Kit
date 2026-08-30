@@ -30,10 +30,11 @@ Phase 0 — Project foundation
 - [x] Repository initialized
 - [x] Frontend scaffolded
 - [x] Backend scaffolded
-- [ ] Database
-- [ ] Authentication
-- [ ] Multi-tenancy
-- [ ] RBAC
-- [ ] Invitations
-- [ ] Billing
-- [ ] Audit logging
+- [x] Database
+- [x] Authentication
+- [x] Multi-tenancy
+- [x] RBAC
+- [x] Invitations
+- [x] Audit logging
+- [x] Billing Backend (Usage Sync & Subscriptions)
+- [ ] Billing Frontend (Dashboard)
