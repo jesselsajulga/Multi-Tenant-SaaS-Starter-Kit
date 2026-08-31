@@ -74,6 +74,12 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
+    if (!user.passwordHash) {
+      return reply.status(401).send({
+        error: "Password login is unavailable for this account. Please use your identity provider.",
+      });
+    }
+
     const passwordValid = await verifyPassword(
       password,
       user.passwordHash,

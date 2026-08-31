@@ -1,0 +1,103 @@
+import { cookies } from "next/headers";
+import { getOrganizationContext, requireSession } from "@/lib/auth";
+import { DashboardGreeting } from "@/components/dashboard/DashboardGreeting";
+import { WorkspaceOverview } from "@/components/dashboard/WorkspaceOverview";
+import { UsageSummaryCard } from "@/components/dashboard/UsageSummaryCard";
+import { RecentMembersList } from "@/components/dashboard/RecentMembersList";
+import type { MemberData } from "@/components/dashboard/RecentMembersList";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+async function fetchMembers(organizationId: string, sessionValue: string) {
+  const res = await fetch(`${API_URL}/organizations/${organizationId}/members`, {
+    headers: { Cookie: `session=${sessionValue}` },
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    throw new Error(`Failed to fetch members: ${res.status}`);
+  }
+  
+  const data = await res.json();
+  return data.members as MemberData[];
+}
+
+async function fetchUsage(organizationId: string, sessionValue: string) {
+  const res = await fetch(`${API_URL}/organizations/${organizationId}/billing/usage`, {
+    headers: { Cookie: `session=${sessionValue}` },
+    cache: "no-store",
+  });
+  
+  if (res.status === 403 || res.status === 401) {
+    return { data: null, error: false, forbidden: true };
+  }
+  
+  if (!res.ok) {
+    return { data: null, error: true, forbidden: false };
+  }
+  
+  const data = await res.json();
+  return { data, error: false, forbidden: false };
+}
+
+export default async function DashboardPage({ params }: { params: Promise<{ organizationId: string }> }) {
+  const { organizationId } = await params;
+  const session = await requireSession();
+  const context = await getOrganizationContext(organizationId);
+
+  if (!context) {
+    return null; // Handled by layout
+  }
+
+  const cookieStore = await cookies();
+  const sessionValue = cookieStore.get("session")?.value || "";
+
+  // Fetch data in parallel
+  const [membersResult, usageResult] = await Promise.allSettled([
+    fetchMembers(organizationId, sessionValue),
+    fetchUsage(organizationId, sessionValue)
+  ]);
+
+  const members = membersResult.status === "fulfilled" ? membersResult.value : null;
+  
+  // If user is MEMBER, usageResult will be fulfilled with { forbidden: true }
+  // If 500 error, usageResult fulfilled with { error: true }
+  const usage = usageResult.status === "fulfilled" ? usageResult.value : { data: null, error: true, forbidden: false };
+
+  return (
+    <div className="max-w-5xl">
+      <DashboardGreeting 
+        email={session.user.email} 
+        organizationName={context.organization.name} 
+      />
+
+      {members === null ? (
+        <div className="bg-red-50 text-red-600 p-4 rounded-md mb-8 border border-red-200 text-sm">
+          Unable to load workspace members.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-1">
+            <WorkspaceOverview totalMembers={members.length} />
+          </div>
+          
+          {!usage.forbidden && (
+            <div className="lg:col-span-2">
+              <UsageSummaryCard 
+                organizationId={organizationId} 
+                usageData={usage.data} 
+                error={usage.error} 
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {members !== null && (
+        <div className="mt-8">
+          <RecentMembersList members={members} />
+        </div>
+      )}
+    </div>
+  );
+}

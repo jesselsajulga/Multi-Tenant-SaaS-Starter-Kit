@@ -15,7 +15,7 @@ datasource db {
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
-  passwordHash String
+  passwordHash String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -23,6 +23,42 @@ model User {
   memberships     OrganizationMember[]
   invitationsSent OrganizationInvitation[]
   auditLogs       AuditLog[]
+  identities      Identity[]
+}
+
+model Identity {
+  id        String   @id @default(uuid())
+  userId    String
+
+  provider  String   // e.g. "google", "microsoft"
+  issuer    String   // Stable OIDC issuer URL
+  subject   String   // Stable OIDC subject (sub)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([issuer, subject])
+  @@index([userId])
+}
+
+model OrganizationSsoConnection {
+  id             String   @id @default(uuid())
+  organizationId String
+
+  provider       String
+  issuer         String
+  clientId       String
+
+  enabled        Boolean  @default(false)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
 }
 
 model Session {
@@ -52,6 +88,7 @@ model Organization {
   featureFlags FeatureFlag[]
   usageEvents  UsageEvent[]
   usageSyncLogs UsageSyncLog[]
+  ssoConnections OrganizationSsoConnection[]
 }
 
 model OrganizationMember {
