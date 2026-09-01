@@ -2,39 +2,52 @@
 
 A production-oriented SaaS starter project demonstrating:
 
-- Authentication
+- Authentication (Local & Google OAuth)
 - Multi-tenancy
-- Role-based access control
+- Role-based access control (OWNER, MEMBER)
 - Organization management
 - Invitations
-- Subscription billing
+- Subscription billing (Stripe Integration)
 - Audit logging
-- PostgreSQL row-level security
+- PostgreSQL row-level security (RLS)
 - Redis
 - Docker
 
 ## Architecture
 
-The system will eventually consist of:
+The system consists of:
 
-- Next.js frontend
-- Node.js backend
-- PostgreSQL database
-- Redis
-- Stripe
-- Docker
+- **Frontend**: Next.js (App Router, React Server Components)
+- **Backend**: Fastify (Node.js API)
+- **Database**: PostgreSQL (Prisma ORM)
+- **Cache**: Redis
+- **Payments**: Stripe
+- **Infrastructure**: Docker
 
 ## Status
 
-Phase 0 — Project foundation
+### Phase 0-8: Foundation & Backend Services
 - [x] Repository initialized
 - [x] Frontend scaffolded
 - [x] Backend scaffolded
-- [x] Database
-- [x] Authentication
-- [x] Multi-tenancy
-- [x] RBAC
-- [x] Invitations
-- [x] Audit logging
+- [x] Database Configuration & RLS
+- [x] Authentication & Session Management
+- [x] Multi-tenancy Isolation
+- [x] RBAC (Role-Based Access Control)
+- [x] Invitations & Member Management
+- [x] Audit Logging
+- [x] Google SSO Authentication integration
+
+### Phase 9: Workspace & Billing
+- [x] SaaS Workspace Shell (Sidebar, Navigation)
+- [x] Organization Settings
+- [x] Team Management
 - [x] Billing Backend (Usage Sync & Subscriptions)
-- [ ] Billing Frontend (Dashboard)
+- [x] Billing Frontend (Subscription display, Stripe Checkout & Portal integration)
+
+### Phase 10: Projects Workspace
+- [x] Projects Foundation
+- [x] Project Creation
+- [x] Project Detail Views
+- [x] Project Editing & Deletion
+- [x] Full Security Verification (Tenant Isolation, Role Symmetry)
