@@ -31,7 +31,7 @@ export const ssoRoutes: FastifyPluginAsync = async (app) => {
     });
 
     const url = await ssoProvider.getAuthorizationUrl(state, pkceChallenge);
-    return reply.redirect(302, url);
+    return reply.redirect(url);
   });
 
   app.get<{
@@ -74,7 +74,7 @@ export const ssoRoutes: FastifyPluginAsync = async (app) => {
     reply.clearCookie("sso_state", { path: "/" });
 
     try {
-      const redirectUri = `http://localhost:4000/api/auth/sso/${provider}/callback`;
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI || `http://localhost:4000/auth/sso/${provider}/callback`;
       const profile = await ssoProvider.exchangeCode(code, redirectUri, parsedState.pkceVerifier);
 
       // Identity resolution logic (linking, creation)
@@ -86,12 +86,12 @@ export const ssoRoutes: FastifyPluginAsync = async (app) => {
 
       // Redirect back to the frontend application
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-      return reply.redirect(302, `${frontendUrl}/organizations`);
+      return reply.redirect(`${frontendUrl}/organizations`);
     } catch (err: any) {
       app.log.error(err);
       if (err.message === "ACCOUNT_EXISTS_REQUIRES_LINKING") {
         const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-        return reply.redirect(302, `${frontendUrl}/login?error=account_exists_requires_linking`);
+        return reply.redirect(`${frontendUrl}/login?error=account_exists_requires_linking`);
       }
       return reply.status(500).send({ error: "SSO Exchange Failed" });
     }

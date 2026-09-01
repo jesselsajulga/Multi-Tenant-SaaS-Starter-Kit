@@ -1,3 +1,5 @@
+import { OAuth2Client } from "google-auth-library";
+
 export interface IdentityProfile {
   issuer: string;
   subject: string;
@@ -18,16 +20,34 @@ export interface SsoProvider {
   exchangeCode(code: string, redirectUri: string, pkceVerifier?: string): Promise<IdentityProfile>;
 }
 
-// In this phase we build a mock/demo provider.
-// This gives the foundational shape without pulling in generic OIDC libraries yet.
-export class MockGoogleProvider implements SsoProvider {
+export class GoogleProvider implements SsoProvider {
+  private client: OAuth2Client;
+  private clientId: string;
+  private clientSecret: string;
+
+  constructor() {
+    this.clientId = process.env.GOOGLE_CLIENT_ID || "";
+    this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+
+    if (!this.clientId) {
+      throw new Error("GOOGLE_CLIENT_ID is required for Google OAuth");
+    }
+    if (!this.clientSecret) {
+      throw new Error("GOOGLE_CLIENT_SECRET is required for Google OAuth");
+    }
+
+    this.client = new OAuth2Client({
+      clientId: this.clientId,
+      clientSecret: this.clientSecret,
+    });
+  }
+
   async getAuthorizationUrl(state: string, pkceChallenge?: string): Promise<string> {
-    const clientId = process.env.GOOGLE_CLIENT_ID || "mock-client-id";
-    const redirectUri = "http://localhost:4000/auth/sso/google/callback";
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:4000/auth/sso/google/callback";
     
     // Construct the standard OAuth2 URL
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    url.searchParams.append("client_id", clientId);
+    url.searchParams.append("client_id", this.clientId);
     url.searchParams.append("redirect_uri", redirectUri);
     url.searchParams.append("response_type", "code");
     url.searchParams.append("scope", "openid email profile");
@@ -42,34 +62,46 @@ export class MockGoogleProvider implements SsoProvider {
   }
 
   async exchangeCode(code: string, redirectUri: string, pkceVerifier?: string): Promise<IdentityProfile> {
-    // In a real implementation, we would POST to https://oauth2.googleapis.com/token
-    // For now, this validates our internal flow logic perfectly.
+    const redirect = process.env.GOOGLE_REDIRECT_URI || redirectUri;
     
-    if (code === "mock-code-123") {
-      return {
-        issuer: "https://accounts.google.com",
-        subject: "mock-google-sub-999",
-        email: "test@example.com",
-        emailVerified: true
-      };
+    // 1. Exchange the code at Google's token endpoint
+    const { tokens } = await this.client.getToken({
+      code,
+      redirect_uri: redirect,
+      codeVerifier: pkceVerifier,
+    });
+
+    if (!tokens.id_token) {
+      throw new Error("No ID token returned from Google");
     }
-    
-    if (code === "mock-code-unverified") {
-      return {
-        issuer: "https://accounts.google.com",
-        subject: "mock-google-sub-888",
-        email: "unverified@example.com",
-        emailVerified: false
-      };
+
+    // 2. Cryptographic verification of the ID Token
+    const ticket = await this.client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: this.clientId,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) {
+      throw new Error("Failed to extract ID token payload");
     }
-    
-    throw new Error("Invalid authorization code");
+
+    // 3. Extract verified identity using the stable `sub` claim
+    return {
+      issuer: payload.iss || "https://accounts.google.com",
+      subject: payload.sub,
+      email: payload.email || "",
+      emailVerified: payload.email_verified || false,
+    };
   }
 }
 
+// Fail-fast on startup: instantiate the provider so it throws immediately if env vars are missing.
+const googleProvider = new GoogleProvider();
+
 export function getSsoProvider(providerName: string): SsoProvider | null {
   if (providerName === "google") {
-    return new MockGoogleProvider();
+    return googleProvider;
   }
   return null;
 }

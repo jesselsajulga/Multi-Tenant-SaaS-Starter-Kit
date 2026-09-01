@@ -183,4 +183,35 @@ export async function billingRoutes(app: FastifyInstance) {
       return reply.status(500).send({ error: "Internal Server Error" });
     }
   });
+
+  app.get("/organizations/:organizationId/billing/subscription", async (request, reply) => {
+    // 1. Authenticate user
+    const auth = await authenticateRequest(request);
+    if (!auth) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    // 2. Authorize organization + role
+    const { organizationId } = request.params as { organizationId: string };
+    const authz = await authorizeOrganizationAccess(organizationId, auth.user.id, "OWNER");
+    if (authz.error) {
+      return reply.status(authz.status).send({ error: authz.error });
+    }
+
+    try {
+      const subscription = await prisma.subscription.findUnique({
+        where: { organizationId },
+        select: {
+          status: true,
+          plan: true,
+          currentPeriodEnd: true
+        }
+      });
+
+      return reply.status(200).send({ subscription });
+    } catch (err: any) {
+      app.log.error(`Failed to retrieve subscription: ${err.message}`);
+      return reply.status(500).send({ error: "Internal Server Error" });
+    }
+  });
 }

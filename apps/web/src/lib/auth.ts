@@ -21,7 +21,7 @@ export interface OrganizationContext {
     createdAt: string;
     updatedAt: string;
   };
-  role: "OWNER" | "ADMIN" | "MEMBER";
+  role: "OWNER" | "MEMBER";
 }
 
 /**

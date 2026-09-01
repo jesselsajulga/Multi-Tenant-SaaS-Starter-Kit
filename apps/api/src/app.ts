@@ -10,6 +10,7 @@ import { billingRoutes } from "./billing/routes";
 import { invitationRoutes } from "./invitations/routes";
 import { auditRoutes } from "./audit/routes";
 import { featureFlagsRoutes } from "./feature-flags/routes";
+import { ssoRoutes } from "./auth/sso/routes";
 
 import rawBody from "fastify-raw-body";
 
@@ -47,6 +48,7 @@ export function buildApp() {
   app.register(webhookRoutes);
   app.register(auditRoutes);
   app.register(featureFlagsRoutes);
+  app.register(ssoRoutes);
 
   return app;
 }

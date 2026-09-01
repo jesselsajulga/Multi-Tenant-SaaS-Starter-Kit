@@ -7,14 +7,17 @@ import { Menu, X, LayoutDashboard, Users, FolderKanban, CreditCard, Settings } f
 
 interface MobileNavProps {
   organizationId: string;
-  role: "OWNER" | "ADMIN" | "MEMBER";
+  role: "OWNER" | "MEMBER";
 }
 
 export function MobileNav({ organizationId, role }: MobileNavProps) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
 
-  const navGroups = [
+  type NavItem = { label: string; href: string; icon: any; disabled?: boolean };
+  type NavGroup = { label: string; hide?: boolean; items: NavItem[] };
+
+  const navGroups: NavGroup[] = [
     {
       label: "WORKSPACE",
       items: [
@@ -25,14 +28,16 @@ export function MobileNav({ organizationId, role }: MobileNavProps) {
       label: "WORK",
       items: [
         { label: "Team", href: `/organizations/${organizationId}/team`, icon: Users },
-        { label: "Projects", href: `/organizations/${organizationId}/projects`, icon: FolderKanban, disabled: true },
+        { label: "Projects", href: `/organizations/${organizationId}/projects`, icon: FolderKanban },
       ]
     },
     {
       label: "BILLING",
       hide: role === "MEMBER",
       items: [
-        { label: "Usage", href: `/organizations/${organizationId}/billing/usage`, icon: CreditCard },
+        { label: "Overview", href: `/organizations/${organizationId}/billing`, icon: CreditCard },
+        { label: "Usage", href: `/organizations/${organizationId}/billing/usage`, icon: LayoutDashboard },
+        { label: "Subscription", href: `/organizations/${organizationId}/billing/subscription`, icon: FolderKanban },
       ]
     },
     {
