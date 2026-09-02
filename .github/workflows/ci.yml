@@ -54,9 +54,9 @@ jobs:
       with:
         node-version: 22
         cache: 'npm'
-
-    - name: Install dependencies
-      run: npm install
+        cache-dependency-path: |
+          apps/api/package-lock.json
+          apps/web/package-lock.json
 
     - name: Install dependencies for api
       run: npm install
