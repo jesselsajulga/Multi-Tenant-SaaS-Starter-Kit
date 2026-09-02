@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, Users, FolderKanban, CreditCard, Settings } from "lucide-react";
+import { Menu, X, LayoutDashboard, Users, FolderKanban, CreditCard, Settings, ScrollText, ToggleRight } from "lucide-react";
 
 interface MobileNavProps {
   organizationId: string;
@@ -45,6 +45,8 @@ export function MobileNav({ organizationId, role }: MobileNavProps) {
       hide: role === "MEMBER",
       items: [
         { label: "Settings", href: `/organizations/${organizationId}/settings`, icon: Settings },
+        { label: "Feature Flags", href: `/organizations/${organizationId}/feature-flags`, icon: ToggleRight },
+        { label: "Audit Logs", href: `/organizations/${organizationId}/audit-logs`, icon: ScrollText },
       ]
     }
   ];

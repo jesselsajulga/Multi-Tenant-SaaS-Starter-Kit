@@ -23,7 +23,7 @@ export type AuditEventInput = {
 );
 
 export async function createAuditLog(
-  tx: TransactionClient,
+  tx: any,
   input: AuditEventInput
 ) {
   const baseMetadata = input.metadata || {};

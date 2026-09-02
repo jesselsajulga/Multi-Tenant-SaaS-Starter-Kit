@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { authenticateRequest } from "../auth/authenticate";
 import { createProjectSchema, updateProjectSchema } from "./schema";
 import { prisma, getTenantPrisma } from "../db";
+import { createAuditLog } from "../audit/logger";
 
 async function verifyTenantAccess(request: FastifyRequest, userId: string) {
   const orgId = request.headers["x-organization-id"] as string;
@@ -43,11 +44,25 @@ export async function projectRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid project data" });
     }
 
-    const project = await access.tenantPrisma.project.create({
-      data: {
-        name: result.data.name,
+    const project = await access.tenantPrisma.$transaction(async (tx) => {
+      const p = await tx.project.create({
+        data: {
+          name: result.data.name,
+          organizationId: access.orgId,
+        },
+      });
+
+      await createAuditLog(tx, {
         organizationId: access.orgId,
-      },
+        actorId: auth.user.id,
+        actorSnapshot: { email: auth.user.email },
+        action: "PROJECT_CREATED",
+        resourceType: "Project",
+        resourceId: p.id,
+        metadata: { name: p.name }
+      });
+
+      return p;
     });
 
     return reply.status(201).send({ project });

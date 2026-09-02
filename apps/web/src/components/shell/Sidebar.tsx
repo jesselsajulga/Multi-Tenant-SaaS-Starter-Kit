@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CreditCard, Settings, FolderKanban } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, FolderKanban, ScrollText, ToggleRight } from "lucide-react";
 
 interface SidebarProps {
   organizationId: string;
@@ -43,6 +43,8 @@ export function Sidebar({ organizationId, role }: SidebarProps) {
       hide: role === "MEMBER",
       items: [
         { label: "Settings", href: `/organizations/${organizationId}/settings`, icon: Settings },
+        { label: "Feature Flags", href: `/organizations/${organizationId}/feature-flags`, icon: ToggleRight },
+        { label: "Audit Logs", href: `/organizations/${organizationId}/audit-logs`, icon: ScrollText },
       ]
     }
   ];

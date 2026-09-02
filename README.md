@@ -51,3 +51,6 @@ The system consists of:
 - [x] Project Detail Views
 - [x] Project Editing & Deletion
 - [x] Full Security Verification (Tenant Isolation, Role Symmetry)
+
+### Security Nuance
+*Note: The exact HTTP response for a cross-tenant lookup depends on which security gate is reached. A spoofed organization ID can produce a `403` at the API validation layer (`verifyTenantAccess`); however, a request operating within an authorized tenant context but targeting a record outside the tenant will be hidden by PostgreSQL RLS and surface as a `404`. These represent defense-in-depth enforcement layers.*

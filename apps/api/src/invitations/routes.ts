@@ -4,6 +4,7 @@ import { authenticateRequest } from "../auth/authenticate";
 import { authorizeOrganizationAccess } from "../auth/authorize";
 import { createInvitationSchema, processInvitationSchema } from "./schema";
 import crypto from "crypto";
+import { createAuditLog } from "../audit/logger";
 
 export async function invitationRoutes(app: FastifyInstance) {
   // POST /organizations/:organizationId/invitations
@@ -54,16 +55,30 @@ export async function invitationRoutes(app: FastifyInstance) {
 
     try {
       // Create PENDING invitation via tenantPrisma (RLS enforced)
-      const invitation = await access.tenantPrisma.organizationInvitation.create({
-        data: {
+      const invitation = await access.tenantPrisma.$transaction(async (tx) => {
+        const inv = await tx.organizationInvitation.create({
+          data: {
+            organizationId,
+            email,
+            inviterId: auth.user.id,
+            tokenHash,
+            role: "MEMBER", // Hardcoded as per decision
+            status: "PENDING",
+            expiresAt,
+          }
+        });
+
+        await createAuditLog(tx, {
           organizationId,
-          email,
-          inviterId: auth.user.id,
-          tokenHash,
-          role: "MEMBER", // Hardcoded as per decision
-          status: "PENDING",
-          expiresAt,
-        }
+          actorId: auth.user.id,
+          actorSnapshot: { email: auth.user.email },
+          action: "MEMBER_INVITED",
+          resourceType: "OrganizationInvitation",
+          resourceId: inv.id,
+          metadata: { invitedEmail: email, role: "MEMBER" }
+        });
+
+        return inv;
       });
 
       // Simulate email
