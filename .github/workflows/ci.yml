@@ -70,7 +70,7 @@ jobs:
       working-directory: ./apps/api
       run: |
         npx prisma generate
-        npx prisma db push
+        npx prisma migrate deploy
         npm run db:setup
 
     - name: Build API
