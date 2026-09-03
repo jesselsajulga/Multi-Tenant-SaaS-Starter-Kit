@@ -9,6 +9,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,8 +31,13 @@ export function LoginForm() {
         throw new Error(data.error || "Login failed");
       }
 
-      router.push("/organizations");
-      router.refresh();
+      setSuccess(true);
+      setLoading(false);
+      
+      setTimeout(() => {
+        router.push("/organizations");
+        router.refresh();
+      }, 1500);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -69,10 +75,20 @@ export function LoginForm() {
       </div>
       <button 
         type="submit" 
-        disabled={loading}
-        className="w-full flex justify-center items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 disabled:opacity-70"
+        disabled={loading || success}
+        className={`w-full flex justify-center items-center rounded-md px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+          success 
+            ? "bg-green-600 hover:bg-green-700 focus:ring-green-600" 
+            : "bg-zinc-900 hover:bg-zinc-800 focus:ring-zinc-900 disabled:opacity-70"
+        }`}
       >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign in"}
+        {success ? (
+          "Signed in successfully!"
+        ) : loading ? (
+          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Signing in...</>
+        ) : (
+          "Sign in"
+        )}
       </button>
     </form>
   );
