@@ -36,7 +36,15 @@ async function fetchUsage(organizationId: string, sessionValue: string) {
     return { data: null, error: true, forbidden: false };
   }
   
-  const data = await res.json();
+  const rawData = await res.json();
+  
+  // Transform backend UsageReport into the component's UsageData shape
+  const data = {
+    apiCalls: rawData.totals?.find((t: any) => t.metric === "API_CALLS")?.quantity || 0,
+    aiTokens: rawData.totals?.find((t: any) => t.metric === "AI_TOKENS")?.quantity || 0,
+    storageMb: rawData.totals?.find((t: any) => t.metric === "STORAGE_MB")?.quantity || 0,
+  };
+  
   return { data, error: false, forbidden: false };
 }
 
