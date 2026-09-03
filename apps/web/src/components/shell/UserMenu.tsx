@@ -25,7 +25,10 @@ export function UserMenu({ session }: { session: SessionData }) {
             <button
               onClick={async () => {
                 const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-                await fetch(`${NEXT_PUBLIC_API_URL}/auth/logout`, { method: "POST" });
+                await fetch(`${NEXT_PUBLIC_API_URL}/auth/logout`, { 
+                  method: "POST",
+                  credentials: "include" 
+                });
                 window.location.href = "/login";
               }}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-zinc-100"
