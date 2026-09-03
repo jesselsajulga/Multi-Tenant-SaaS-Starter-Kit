@@ -20,7 +20,8 @@ export function buildApp() {
   });
 
   app.register(cors, {
-    origin: true,
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    credentials: true,
   });
 
   // Enable raw body for stripe webhook signatures

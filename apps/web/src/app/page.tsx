@@ -1,5 +1,12 @@
 import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/auth";
 
-export default function Home() {
-  redirect("/organizations");
+export default async function Home() {
+  const session = await getServerSession();
+  
+  if (session) {
+    redirect("/organizations");
+  } else {
+    redirect("/login");
+  }
 }
