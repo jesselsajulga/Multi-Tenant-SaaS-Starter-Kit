@@ -30,26 +30,12 @@ export function SignupForm() {
         throw new Error(data.error || "Registration failed");
       }
 
-      // Automatically log in after registration
-      const loginRes = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!loginRes.ok) {
-        // If auto-login fails, redirect to login page
-        router.push("/login");
-        return;
-      }
-
       setSuccess(true);
+      setLoading(false);
       
       setTimeout(() => {
-        router.push("/organizations");
-        router.refresh();
-      }, 1500);
+        router.push("/login");
+      }, 2000);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -61,11 +47,6 @@ export function SignupForm() {
       {error && (
         <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md">
           {error}
-        </div>
-      )}
-      {success && (
-        <div className="p-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md text-center font-medium">
-          Account created successfully! Welcome!
         </div>
       )}
       <div>
@@ -92,10 +73,20 @@ export function SignupForm() {
       </div>
       <button 
         type="submit" 
-        disabled={loading}
-        className="w-full flex justify-center items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 disabled:opacity-70"
+        disabled={loading || success}
+        className={`w-full flex justify-center items-center rounded-md px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+          success 
+            ? "bg-green-600 hover:bg-green-700 focus:ring-green-600" 
+            : "bg-zinc-900 hover:bg-zinc-800 focus:ring-zinc-900 disabled:opacity-70"
+        }`}
       >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign up"}
+        {success ? (
+          "Account created successfully!"
+        ) : loading ? (
+          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account...</>
+        ) : (
+          "Sign up"
+        )}
       </button>
     </form>
   );
