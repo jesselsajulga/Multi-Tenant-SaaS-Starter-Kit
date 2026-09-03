@@ -9,6 +9,7 @@ export function SignupForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,8 +44,12 @@ export function SignupForm() {
         return;
       }
 
-      router.push("/organizations");
-      router.refresh();
+      setSuccess(true);
+      
+      setTimeout(() => {
+        router.push("/organizations");
+        router.refresh();
+      }, 1500);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -56,6 +61,11 @@ export function SignupForm() {
       {error && (
         <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md">
           {error}
+        </div>
+      )}
+      {success && (
+        <div className="p-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md text-center font-medium">
+          Account created successfully! Welcome!
         </div>
       )}
       <div>
