@@ -50,7 +50,7 @@ export async function organizationRoutes(app: FastifyInstance) {
     });
 
     const organizations = memberships.map(m => ({
-      ...m.organization,
+      organization: m.organization,
       role: m.role
     }));
 
