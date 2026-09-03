@@ -1,7 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { SignupForm } from "@/components/auth/SignupForm";
+import { getServerSession } from "@/lib/auth";
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  const session = await getServerSession();
+  if (session) {
+    redirect("/organizations");
+  }
+
   const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
   return (
