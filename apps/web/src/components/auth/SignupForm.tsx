@@ -35,7 +35,7 @@ export function SignupForm() {
       
       setTimeout(() => {
         router.push("/login");
-      }, 2000);
+      }, 1500);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
