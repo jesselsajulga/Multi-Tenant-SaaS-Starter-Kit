@@ -20,6 +20,9 @@ export interface OrganizationContext {
     name: string;
     createdAt: string;
     updatedAt: string;
+    _count?: {
+      projects: number;
+    };
   };
   role: "OWNER" | "MEMBER";
 }

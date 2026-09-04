@@ -44,13 +44,25 @@ export async function organizationRoutes(app: FastifyInstance) {
         userId: auth.user.id,
       },
       include: {
-        organization: true,
+        organization: {
+          include: {
+            _count: {
+              select: { projects: true }
+            }
+          }
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
     const organizations = memberships.map(m => ({
-      organization: m.organization,
+      organization: {
+        id: m.organization.id,
+        name: m.organization.name,
+        createdAt: m.organization.createdAt,
+        updatedAt: m.organization.updatedAt,
+        _count: m.organization._count
+      },
       role: m.role
     }));
 
