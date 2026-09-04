@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireSession, getUserOrganizations } from "@/lib/auth";
 import { UserMenu } from "@/components/shell/UserMenu";
+import { CreateWorkspaceModal } from "@/components/shell/CreateWorkspaceModal";
 
 export default async function OrganizationsPage() {
   const session = await requireSession();
@@ -22,11 +23,10 @@ export default async function OrganizationsPage() {
           <p className="text-zinc-600 mb-6">
             You don't belong to any workspaces yet.
           </p>
-          <button 
-            className="w-full rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors cursor-not-allowed"
-          >
-            Create a Workspace
-          </button>
+          <CreateWorkspaceModal 
+            buttonClassName="w-full rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+            buttonContent="Create a Workspace"
+          />
         </div>
       </main>
     </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Plus } from "lucide-react";
 import type { OrganizationContext } from "@/lib/auth";
+import { CreateWorkspaceModal } from "@/components/shell/CreateWorkspaceModal";
 
 interface OrganizationSwitcherProps {
   organizations: OrganizationContext[];
@@ -50,16 +51,15 @@ export function OrganizationSwitcher({ organizations, currentOrganizationId }: O
           ))}
           
           <div className="border-t border-zinc-100 mt-1 pt-1">
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                // Redirect to a create workspace page if it existed, or handle modal
-                alert("Create workspace coming soon");
-              }}
-              className="w-full text-left px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Create Workspace
-            </button>
+            <CreateWorkspaceModal 
+              buttonClassName="w-full text-left px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 flex items-center gap-2"
+              buttonContent={
+                <>
+                  <Plus className="w-4 h-4" /> Create Workspace
+                </>
+              }
+              onSuccess={() => setIsOpen(false)}
+            />
           </div>
         </div>
       )}
