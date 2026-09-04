@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, CreditCard, Settings, FolderKanban, ScrollText, ToggleRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   organizationId: string;
@@ -50,18 +51,13 @@ export function Sidebar({ organizationId, role }: SidebarProps) {
   ];
 
   return (
-    <aside className="hidden md:flex w-64 border-r border-zinc-200 bg-zinc-50 flex-col shrink-0 overflow-y-auto">
+    <aside className="flex flex-col h-full overflow-y-auto border-r border-zinc-200 bg-zinc-50">
       <nav className="p-4 space-y-6">
         {navGroups.map((group) => {
           if (group.hide) return null;
           
           return (
             <div key={group.label}>
-              {/* Optional Section Label 
-              <div className="px-3 mb-2 text-xs font-semibold text-zinc-400 tracking-wider">
-                {group.label}
-              </div>
-              */}
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <NavItem 
@@ -98,13 +94,14 @@ function NavItem({ href, icon, label, active = false, disabled = false }: { href
   return (
     <Link 
       href={href} 
-      className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
+      className={cn(
+        "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors",
         active 
           ? "bg-zinc-200/50 text-zinc-900 font-medium" 
           : "text-zinc-600 hover:bg-zinc-200/50 hover:text-zinc-900"
-      }`}
+      )}
     >
-      {icon && <span className={active ? "text-zinc-900" : "text-zinc-500"}>{icon}</span>}
+      {icon && <span className={cn(active ? "text-zinc-900" : "text-zinc-500")}>{icon}</span>}
       {label}
     </Link>
   );

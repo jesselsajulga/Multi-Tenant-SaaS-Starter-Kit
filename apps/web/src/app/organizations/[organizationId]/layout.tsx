@@ -10,6 +10,8 @@ interface OrganizationLayoutProps {
   }>;
 }
 
+import { AppShell } from "@/components/layout/app-shell";
+
 export default async function OrganizationLayout({ children, params }: OrganizationLayoutProps) {
   const { organizationId } = await params;
 
@@ -23,25 +25,24 @@ export default async function OrganizationLayout({ children, params }: Organizat
   const organizations = await getUserOrganizations();
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col text-zinc-900 font-sans">
-      <Header 
-        session={session} 
-        organizations={organizations} 
-        currentOrganizationId={organizationId} 
-      />
-
-      <div className="flex flex-1 overflow-hidden">
+    <AppShell
+      header={
+        <Header 
+          session={session} 
+          organizations={organizations} 
+          currentOrganizationId={organizationId} 
+        />
+      }
+      sidebar={
         <Sidebar 
           organizationId={organizationId} 
           role={context.role} 
         />
-
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-zinc-50">
-          <div className="max-w-6xl mx-auto">
-            {children}
-          </div>
-        </main>
+      }
+    >
+      <div className="p-4 md:p-8 max-w-6xl mx-auto w-full">
+        {children}
       </div>
-    </div>
+    </AppShell>
   );
 }

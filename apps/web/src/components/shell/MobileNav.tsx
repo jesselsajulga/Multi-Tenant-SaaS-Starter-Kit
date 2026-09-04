@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, Users, FolderKanban, CreditCard, Settings, ScrollText, ToggleRight } from "lucide-react";
+import { Menu, LayoutDashboard, Users, FolderKanban, CreditCard, Settings, ScrollText, ToggleRight } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface MobileNavProps {
   organizationId: string;
@@ -52,77 +53,57 @@ export function MobileNav({ organizationId, role }: MobileNavProps) {
   ];
 
   return (
-    <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="md:hidden mr-2 p-2 -ml-2 text-zinc-500 hover:bg-zinc-100 rounded-md"
-      >
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger className="md:hidden mr-2 p-2 -ml-2 text-zinc-500 hover:bg-zinc-100 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950">
         <Menu className="w-5 h-5" />
-      </button>
+      </SheetTrigger>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
-          {/* Overlay */}
-          <div 
-            className="fixed inset-0 bg-black/50" 
-            onClick={() => setIsOpen(false)}
-          />
-          
-          {/* Drawer */}
-          <div className="relative w-64 max-w-sm bg-white flex flex-col shadow-xl">
-            <div className="flex items-center justify-between p-4 border-b border-zinc-200">
-              <span className="font-semibold text-zinc-900">Menu</span>
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="p-2 text-zinc-500 hover:bg-zinc-100 rounded-md"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <SheetContent side="left" className="w-[80vw] max-w-sm p-0 flex flex-col">
+        <SheetHeader className="p-4 border-b border-zinc-200 text-left">
+          <SheetTitle>Menu</SheetTitle>
+        </SheetHeader>
+        
+        <nav className="flex-1 overflow-y-auto p-4 space-y-6">
+          {navGroups.map((group) => {
+            if (group.hide) return null;
             
-            <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-              {navGroups.map((group) => {
-                if (group.hide) return null;
-                
-                return (
-                  <div key={group.label}>
-                    <div className="px-3 mb-2 text-xs font-semibold text-zinc-400 tracking-wider">
-                      {group.label}
-                    </div>
-                    <div className="space-y-1">
-                      {group.items.map((item) => (
-                        item.disabled ? (
-                          <div 
-                            key={item.href}
-                            className="flex items-center gap-3 px-3 py-2 text-sm rounded-md text-zinc-400"
-                          >
-                            <item.icon className="w-4 h-4 text-zinc-300" />
-                            {item.label}
-                          </div>
-                        ) : (
-                          <Link 
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setIsOpen(false)}
-                            className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
-                              pathname?.startsWith(item.href)
-                                ? "bg-zinc-100 text-zinc-900 font-medium" 
-                                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-                            }`}
-                          >
-                            <item.icon className={`w-4 h-4 ${pathname?.startsWith(item.href) ? "text-zinc-900" : "text-zinc-500"}`} />
-                            {item.label}
-                          </Link>
-                        )
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
-      )}
-    </>
+            return (
+              <div key={group.label}>
+                <div className="px-3 mb-2 text-xs font-semibold text-zinc-400 tracking-wider">
+                  {group.label}
+                </div>
+                <div className="space-y-1">
+                  {group.items.map((item) => (
+                    item.disabled ? (
+                      <div 
+                        key={item.href}
+                        className="flex items-center gap-3 px-3 py-2 text-sm rounded-md text-zinc-400"
+                      >
+                        <item.icon className="w-4 h-4 text-zinc-300" />
+                        {item.label}
+                      </div>
+                    ) : (
+                      <Link 
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${
+                          pathname?.startsWith(item.href)
+                            ? "bg-zinc-100 text-zinc-900 font-medium" 
+                            : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                        }`}
+                      >
+                        <item.icon className={`w-4 h-4 ${pathname?.startsWith(item.href) ? "text-zinc-900" : "text-zinc-500"}`} />
+                        {item.label}
+                      </Link>
+                    )
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+      </SheetContent>
+    </Sheet>
   );
 }
