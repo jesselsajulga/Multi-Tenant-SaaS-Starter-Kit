@@ -5,6 +5,8 @@ import { TeamList } from "@/components/team/TeamList";
 import { InvitationsList } from "@/components/team/InvitationsList";
 import type { MemberData } from "@/components/team/TeamList";
 import type { InvitationData } from "@/components/team/InvitationsList";
+import { Container } from "@/components/layout/container";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -64,13 +66,15 @@ export default async function TeamPage({ params }: { params: Promise<{ organizat
   const isOwner = context.role === "OWNER";
 
   return (
-    <div className="max-w-5xl">
+    <Container>
       <TeamHeader organizationId={organizationId} isOwner={isOwner} />
 
       {members === null ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md mb-8 border border-red-200 text-sm">
-          Unable to load workspace members.
-        </div>
+        <Alert variant="destructive" className="mb-8">
+          <AlertDescription>
+            Unable to load workspace members.
+          </AlertDescription>
+        </Alert>
       ) : (
         <TeamList 
           organizationId={organizationId} 
@@ -80,9 +84,11 @@ export default async function TeamPage({ params }: { params: Promise<{ organizat
       )}
 
       {invitations.error ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md mt-8 border border-red-200 text-sm">
-          Unable to load pending invitations.
-        </div>
+        <Alert variant="destructive" className="mt-8">
+          <AlertDescription>
+            Unable to load pending invitations.
+          </AlertDescription>
+        </Alert>
       ) : !invitations.forbidden && invitations.data ? (
         <InvitationsList 
           organizationId={organizationId} 
@@ -90,6 +96,6 @@ export default async function TeamPage({ params }: { params: Promise<{ organizat
           isOwner={isOwner} 
         />
       ) : null}
-    </div>
+    </Container>
   );
 }

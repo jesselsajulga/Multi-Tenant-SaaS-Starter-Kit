@@ -2,6 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface InviteMemberModalProps {
   organizationId: string;
@@ -51,84 +63,75 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
     }
   };
 
-  if (!isOpen) {
-    return (
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors"
-      >
-        Invite Member
-      </button>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 bg-zinc-900/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-200 flex justify-between items-center">
-          <h3 className="font-semibold text-zinc-900">Invite a Member</h3>
-          <button 
-            onClick={() => setIsOpen(false)}
-            className="text-zinc-500 hover:text-zinc-700"
-          >
-            ✕
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6">
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button>Invite Member</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Invite a Member</DialogTitle>
+          <DialogDescription className="sr-only">Invite a new member to your organization.</DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6 py-4">
           {error && (
-            <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-md text-sm border border-red-200">
-              {error}
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
           {success && (
-            <div className="mb-4 bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200">
-              Invitation sent successfully!
-            </div>
+            <Alert variant="success">
+              <AlertDescription>Invitation sent successfully!</AlertDescription>
+            </Alert>
           )}
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Email Address</label>
-              <input
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-sm font-medium text-zinc-700">
+                Email Address
+              </label>
+              <Input
+                id="email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="colleague@example.com"
-                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Role</label>
-              <select 
-                disabled
-                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm bg-zinc-50 text-zinc-500 cursor-not-allowed"
-              >
-                <option>Member</option>
-              </select>
-              <p className="text-xs text-zinc-500 mt-1">All invited users join as Members.</p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-zinc-700">
+                Role
+              </label>
+              <Select disabled value="MEMBER">
+                <SelectTrigger>
+                  <SelectValue placeholder="Member" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MEMBER">Member</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-zinc-500">
+                All invited users join as Members.
+              </p>
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end gap-3">
-            <button
+          <div className="flex justify-end gap-3">
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => setIsOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 rounded-md transition-colors"
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || success}
-              className="bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading || success}>
               {loading ? "Sending..." : "Send Invitation"}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

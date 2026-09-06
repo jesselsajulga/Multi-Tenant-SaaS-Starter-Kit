@@ -9,7 +9,7 @@ export interface AppShellProps extends React.HTMLAttributes<HTMLDivElement> {
 const AppShell = React.forwardRef<HTMLDivElement, AppShellProps>(
   ({ className, sidebar, header, children, ...props }, ref) => {
     return (
-      <div ref={ref} className={cn("flex min-h-screen bg-zinc-50/50", className)} {...props}>
+      <div ref={ref} className={cn("flex min-h-screen bg-zinc-50", className)} {...props}>
         {/* Sidebar container */}
         {sidebar && (
           <div className="hidden w-64 shrink-0 flex-col md:flex">

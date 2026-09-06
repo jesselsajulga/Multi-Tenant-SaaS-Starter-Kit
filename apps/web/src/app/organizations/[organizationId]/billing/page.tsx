@@ -1,7 +1,13 @@
 import { requireSession } from "@/lib/auth";
 import { fetchWithSession } from "@/lib/api";
-import { ServerCrash, ShieldAlert, CreditCard, ExternalLink } from "lucide-react";
+import { CreditCard, ExternalLink, Activity } from "lucide-react";
 import Link from "next/link";
+import { Container } from "@/components/layout/container";
+import { PageHeader } from "@/components/layout/page-header";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export default async function BillingOverviewPage({
   params,
@@ -23,27 +29,29 @@ export default async function BillingOverviewPage({
   // Handle 403 authorization
   if (subResponse?.status === 403 || usageResponse?.status === 403) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center rounded-lg border border-red-100 bg-red-50">
-        <ShieldAlert className="w-12 h-12 text-red-500 mb-4" />
-        <h2 className="text-lg font-semibold text-red-900 mb-2">Access Denied</h2>
-        <p className="text-red-700 max-w-md">
-          You don't have permission to view billing information for this organization. 
-          Only owners can access this data.
-        </p>
-      </div>
+      <Container>
+        <Alert variant="destructive">
+          <AlertTitle>Access Denied</AlertTitle>
+          <AlertDescription>
+            You don't have permission to view billing information for this organization. 
+            Only owners can access this data.
+          </AlertDescription>
+        </Alert>
+      </Container>
     );
   }
 
   // Handle 500s or network failures
   if ((subResponse && !subResponse.ok) || (usageResponse && !usageResponse.ok)) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center rounded-lg border border-zinc-200 bg-white">
-        <ServerCrash className="w-12 h-12 text-zinc-400 mb-4" />
-        <h2 className="text-lg font-semibold text-zinc-900 mb-2">Unable to load billing data</h2>
-        <p className="text-zinc-500 max-w-md mb-6">
-          We couldn't retrieve your billing overview due to a server error. Please try again later.
-        </p>
-      </div>
+      <Container>
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load billing data</AlertTitle>
+          <AlertDescription>
+            We couldn't retrieve your billing overview due to a server error. Please try again later.
+          </AlertDescription>
+        </Alert>
+      </Container>
     );
   }
 
@@ -52,96 +60,92 @@ export default async function BillingOverviewPage({
 
   const subscription = subData?.subscription;
   
-  // Basic usage calculations (same as Phase 8.7 Dashboard)
+  // Basic usage calculations
   const totalEvents = usageData?.events?.length || 0;
-  const thisMonthTotal = totalEvents; // Keeping it simple for the overview
+  const thisMonthTotal = totalEvents;
 
   return (
-    <div className="max-w-4xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
-          Billing Overview
-        </h1>
-        <p className="text-zinc-600">
-          Manage your subscription and monitor your usage.
-        </p>
-      </div>
+    <Container>
+      <PageHeader 
+        title="Billing Overview"
+        description="Manage your subscription and monitor your usage."
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
         {/* Subscription Summary */}
-        <div className="bg-white border border-zinc-200 rounded-lg p-6 flex flex-col">
-          <div className="flex items-center gap-3 mb-6">
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-6">
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
               <CreditCard className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-medium text-zinc-900">Subscription</h2>
-          </div>
-
-          <div className="flex-1 space-y-4">
-            <div>
-              <div className="text-sm font-medium text-zinc-500 mb-1">Current Plan</div>
-              <div className="text-xl font-semibold text-zinc-900 capitalize">
-                {subscription?.plan || "Free"}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-sm font-medium text-zinc-500 mb-1">Status</div>
-              <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 capitalize">
-                {subscription?.status || "No active subscription"}
-              </div>
-            </div>
-
-            {subscription?.currentPeriodEnd && (
+            <CardTitle className="text-lg">Subscription</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col">
+            <div className="flex-1 space-y-4">
               <div>
-                <div className="text-sm font-medium text-zinc-500 mb-1">Period Ends</div>
-                <div className="text-sm text-zinc-900">
-                  {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                <div className="text-sm font-medium text-zinc-500 mb-1">Current Plan</div>
+                <div className="text-xl font-semibold text-zinc-900 capitalize">
+                  {subscription?.plan || "Free"}
                 </div>
               </div>
-            )}
-          </div>
 
-          <div className="mt-8 pt-6 border-t border-zinc-100">
-            <Link 
-              href={`/organizations/${organizationId}/billing/subscription`}
-              className="text-sm font-medium text-blue-600 hover:text-blue-500 flex items-center gap-1"
-            >
-              View subscription details
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
+              <div>
+                <div className="text-sm font-medium text-zinc-500 mb-1">Status</div>
+                <Badge variant={subscription?.status === "active" ? "default" : "secondary"} className="capitalize">
+                  {subscription?.status || "No active subscription"}
+                </Badge>
+              </div>
+
+              {subscription?.currentPeriodEnd && (
+                <div>
+                  <div className="text-sm font-medium text-zinc-500 mb-1">Period Ends</div>
+                  <div className="text-sm text-zinc-900">
+                    {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-zinc-100">
+              <Button asChild variant="link" className="px-0 h-auto font-medium text-blue-600 hover:text-blue-500">
+                <Link href={`/organizations/${organizationId}/billing/subscription`} className="flex items-center gap-1">
+                  View subscription details
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Usage Summary */}
-        <div className="bg-white border border-zinc-200 rounded-lg p-6 flex flex-col">
-          <div className="flex items-center gap-3 mb-6">
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-6">
             <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-              <CreditCard className="w-5 h-5" />
+              <Activity className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-medium text-zinc-900">Usage Snapshot</h2>
-          </div>
-
-          <div className="flex-1 space-y-4">
-            <div>
-              <div className="text-sm font-medium text-zinc-500 mb-1">Total Events (30d)</div>
-              <div className="text-3xl font-semibold text-zinc-900">
-                {thisMonthTotal.toLocaleString()}
+            <CardTitle className="text-lg">Usage Snapshot</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col">
+            <div className="flex-1 space-y-4">
+              <div>
+                <div className="text-sm font-medium text-zinc-500 mb-1">Total Events (30d)</div>
+                <div className="text-3xl font-semibold text-zinc-900">
+                  {thisMonthTotal.toLocaleString()}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-8 pt-6 border-t border-zinc-100">
-            <Link 
-              href={`/organizations/${organizationId}/billing/usage`}
-              className="text-sm font-medium text-purple-600 hover:text-purple-500 flex items-center gap-1"
-            >
-              View detailed usage
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
+            <div className="mt-8 pt-6 border-t border-zinc-100">
+              <Button asChild variant="link" className="px-0 h-auto font-medium text-purple-600 hover:text-purple-500">
+                <Link href={`/organizations/${organizationId}/billing/usage`} className="flex items-center gap-1">
+                  View detailed usage
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </Container>
   );
 }

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,9 +56,9 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       <div>
         <label className="block text-sm font-medium text-zinc-700">Email</label>
@@ -80,14 +82,20 @@ export function LoginForm() {
       </div>
       <Button
         type="submit"
-        disabled={loading || success}
-        className="w-full"
-        variant={success ? "success" : "default"}
+        disabled={loading}
+        aria-disabled={success}
+        onClick={(e) => {
+          if (success) e.preventDefault();
+        }}
+        className={`w-full ${success ? "!bg-green-600 hover:!bg-green-600 !opacity-100 !text-white" : ""
+          }`}
       >
         {success ? (
           "Signed in successfully!"
         ) : loading ? (
-          <><Spinner className="mr-2" /> Signing in...</>
+          <>
+            <Spinner className="mr-2" /> Signing in...
+          </>
         ) : (
           "Sign in"
         )}

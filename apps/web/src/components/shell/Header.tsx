@@ -28,11 +28,15 @@ export function Header({ session, organizations, currentOrganizationId }: Header
           <Input 
             type="search" 
             placeholder="Search..." 
+            aria-label="Search"
             className="pl-9 bg-zinc-100 border-transparent focus-visible:bg-white" 
           />
         </div>
         
-        <button className="hover:text-zinc-900 transition-colors hidden md:flex items-center justify-center w-8 h-8 rounded-full hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2">
+        <button 
+          aria-label="Notifications"
+          className="hover:text-zinc-900 transition-colors hidden md:flex items-center justify-center w-8 h-8 rounded-full hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2"
+        >
           <Bell className="w-5 h-5" />
         </button>
         

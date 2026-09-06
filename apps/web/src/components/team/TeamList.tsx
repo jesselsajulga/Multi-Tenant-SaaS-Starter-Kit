@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export interface MemberData {
   id: string;
@@ -48,64 +53,72 @@ export function TeamList({ organizationId, members, isOwner }: TeamListProps) {
   };
 
   return (
-    <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-zinc-200 flex justify-between items-center">
-        <h3 className="font-semibold text-zinc-900">Active Members</h3>
-      </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Active Members</CardTitle>
+      </CardHeader>
       
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 text-sm border-b border-red-100">
-          {error}
+        <div className="px-6 pb-4">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-zinc-50 text-zinc-500 font-medium">
-            <tr>
-              <th className="px-6 py-3 font-medium">User</th>
-              <th className="px-6 py-3 font-medium">Role</th>
-              <th className="px-6 py-3 font-medium">Joined</th>
-              {isOwner && <th className="px-6 py-3 font-medium text-right">Actions</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-200">
-            {members.map((member) => (
-              <tr key={member.id} className="hover:bg-zinc-50/50">
-                <td className="px-6 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-200 text-xs font-medium text-zinc-700 shrink-0">
-                      {member.user.email.substring(0, 1).toUpperCase()}
-                    </div>
-                    <span className="font-medium text-zinc-900">
-                      {member.user.email}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-6 py-3">
-                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-zinc-100 text-zinc-700">
-                    {member.role}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-zinc-500">
-                  {new Date(member.createdAt).toLocaleDateString()}
-                </td>
-                {isOwner && (
-                  <td className="px-6 py-3 text-right">
-                    <button
-                      onClick={() => handleRemove(member.id)}
-                      disabled={loadingId === member.id}
-                      className="text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
-                    >
-                      {loadingId === member.id ? "Removing..." : "Remove"}
-                    </button>
-                  </td>
-                )}
+      <CardContent className="p-0 sm:p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-zinc-50 text-zinc-500 font-medium">
+              <tr>
+                <th className="px-6 py-3 font-medium">User</th>
+                <th className="px-6 py-3 font-medium">Role</th>
+                <th className="px-6 py-3 font-medium">Joined</th>
+                {isOwner && <th className="px-6 py-3 font-medium text-right">Actions</th>}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+              {members.map((member) => (
+                <tr key={member.id} className="hover:bg-zinc-50/50">
+                  <td className="px-6 py-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-zinc-200 text-xs font-medium text-zinc-700">
+                          {member.user.email.substring(0, 1).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-zinc-900">
+                        {member.user.email}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-3">
+                    <Badge variant="secondary">
+                      {member.role}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-3 text-zinc-500">
+                    {new Date(member.createdAt).toLocaleDateString()}
+                  </td>
+                  {isOwner && (
+                    <td className="px-6 py-3 text-right">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRemove(member.id)}
+                        disabled={loadingId === member.id}
+                        className="h-8"
+                      >
+                        {loadingId === member.id ? "Removing..." : "Remove"}
+                      </Button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

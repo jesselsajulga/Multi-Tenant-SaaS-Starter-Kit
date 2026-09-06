@@ -94,6 +94,7 @@ function NavItem({ href, icon, label, active = false, disabled = false }: { href
   return (
     <Link 
       href={href} 
+      aria-current={active ? "page" : undefined}
       className={cn(
         "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors",
         active 

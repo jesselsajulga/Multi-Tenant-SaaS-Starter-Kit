@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function SignupForm() {
   const [email, setEmail] = useState("");
@@ -51,9 +52,9 @@ export function SignupForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       <div>
         <label className="block text-sm font-medium text-zinc-700">Email</label>
@@ -88,7 +89,9 @@ export function SignupForm() {
         {success ? (
           "Account created successfully!"
         ) : loading ? (
-          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account...</>
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account...
+          </>
         ) : (
           "Sign up"
         )}

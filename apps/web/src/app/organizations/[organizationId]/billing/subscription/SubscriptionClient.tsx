@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function SubscriptionClient({ organizationId, hasSubscription }: { organizationId: string, hasSubscription: boolean }) {
   const [loading, setLoading] = useState<"checkout" | "portal" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCheckout = async () => {
     setLoading("checkout");
+    setError(null);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       const res = await fetch(`${API_URL}/organizations/${organizationId}/billing/checkout`, {
@@ -19,17 +23,18 @@ export function SubscriptionClient({ organizationId, hasSubscription }: { organi
       if (res.ok && data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error || "Failed to initiate checkout");
+        setError(data.error || "Failed to initiate checkout");
         setLoading(null);
       }
     } catch (err: any) {
-      alert("Network error: " + err.message);
+      setError("Network error: " + err.message);
       setLoading(null);
     }
   };
 
   const handlePortal = async () => {
     setLoading("portal");
+    setError(null);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       const res = await fetch(`${API_URL}/organizations/${organizationId}/billing/portal`, {
@@ -39,36 +44,41 @@ export function SubscriptionClient({ organizationId, hasSubscription }: { organi
       if (res.ok && data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error || "Failed to open billing portal");
+        setError(data.error || "Failed to open billing portal");
         setLoading(null);
       }
     } catch (err: any) {
-      alert("Network error: " + err.message);
+      setError("Network error: " + err.message);
       setLoading(null);
     }
   };
 
   return (
     <div className="mt-8 pt-8 border-t border-zinc-200">
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>Billing Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
       <div className="flex gap-4">
         {hasSubscription ? (
-          <button
+          <Button
             onClick={handlePortal}
             disabled={loading !== null}
-            className="flex items-center gap-2 bg-white border border-zinc-300 text-zinc-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-50 transition-colors disabled:opacity-50"
+            variant="outline"
           >
-            {loading === "portal" ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {loading === "portal" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             Manage Subscription
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             onClick={handleCheckout}
             disabled={loading !== null}
-            className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50"
           >
-            {loading === "checkout" ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {loading === "checkout" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             Upgrade to Pro
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -5,6 +5,8 @@ import { WorkspaceOverview } from "@/components/dashboard/WorkspaceOverview";
 import { UsageSummaryCard } from "@/components/dashboard/UsageSummaryCard";
 import { RecentMembersList } from "@/components/dashboard/RecentMembersList";
 import type { MemberData } from "@/components/dashboard/RecentMembersList";
+import { Container } from "@/components/layout/container";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -73,16 +75,18 @@ export default async function DashboardPage({ params }: { params: Promise<{ orga
   const usage = usageResult.status === "fulfilled" ? usageResult.value : { data: null, error: true, forbidden: false };
 
   return (
-    <div className="max-w-5xl">
+    <Container>
       <DashboardGreeting 
         email={session.user.email} 
         organizationName={context.organization.name} 
       />
 
       {members === null ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md mb-8 border border-red-200 text-sm">
-          Unable to load workspace members.
-        </div>
+        <Alert variant="destructive" className="mb-8">
+          <AlertDescription>
+            Unable to load workspace members.
+          </AlertDescription>
+        </Alert>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-1">
@@ -106,6 +110,6 @@ export default async function DashboardPage({ params }: { params: Promise<{ orga
           <RecentMembersList members={members} />
         </div>
       )}
-    </div>
+    </Container>
   );
 }

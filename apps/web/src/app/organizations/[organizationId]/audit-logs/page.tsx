@@ -2,6 +2,11 @@ import { getOrganizationContext, requireSession } from "@/lib/auth";
 import { fetchWithSession } from "@/lib/api";
 import { AuditLogTable } from "@/components/audit/AuditLogTable";
 import { redirect } from "next/navigation";
+import { Container } from "@/components/layout/container";
+import { PageHeader } from "@/components/layout/page-header";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { ShieldAlert } from "lucide-react";
 
 export default async function AuditLogsPage({ params }: { params: Promise<{ organizationId: string }> }) {
   const { organizationId } = await params;
@@ -17,26 +22,41 @@ export default async function AuditLogsPage({ params }: { params: Promise<{ orga
     redirect(`/organizations/${organizationId}/dashboard`);
   }
 
-  const res = await fetchWithSession(`/organizations/${organizationId}/audit-logs?limit=50`).catch(() => null);
-  const initialData = res?.ok ? await res.json() : { auditLogs: [], nextCursor: undefined };
+  let error = false;
+  const res = await fetchWithSession(`/organizations/${organizationId}/audit-logs?limit=50`).catch(() => {
+    error = true;
+    return null;
+  });
+
+  if (res && !res.ok) {
+    error = true;
+  }
+
+  const initialData = !error && res ? await res.json() : { auditLogs: [], nextCursor: undefined };
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
-          Audit Logs
-        </h1>
-        <p className="text-zinc-600">
-          A chronological ledger of events and actions within your organization.
-        </p>
-      </div>
+    <Container>
+      <PageHeader 
+        title="Audit Logs"
+        description="A chronological ledger of events and actions within your organization."
+      />
 
-      <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
-        <AuditLogTable 
-          organizationId={organizationId} 
-          initialData={initialData} 
-        />
-      </div>
-    </div>
+      {error ? (
+        <Alert variant="destructive" className="mt-8">
+          <ShieldAlert className="w-4 h-4" />
+          <AlertTitle>Unable to load audit logs</AlertTitle>
+          <AlertDescription>
+            We couldn't retrieve the audit logs due to a server error. Please try again later.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Card className="mt-8 overflow-hidden">
+          <AuditLogTable 
+            organizationId={organizationId} 
+            initialData={initialData} 
+          />
+        </Card>
+      )}
+    </Container>
   );
 }

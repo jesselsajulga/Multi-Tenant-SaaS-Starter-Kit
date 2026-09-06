@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 interface OrganizationSettingsFormProps {
   organizationId: string;
@@ -56,95 +61,93 @@ export function OrganizationSettingsForm({
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6">
       {/* General Settings Section */}
-      <section>
-        <h2 className="text-sm font-semibold tracking-wider text-zinc-500 uppercase mb-4">
-          General
-        </h2>
-        <div className="border-t border-zinc-200">
-          <form onSubmit={handleSubmit} className="py-6 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>General</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
             
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm border border-red-200">
-                {error}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             
             {success && (
-              <div className="bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200">
-                Organization updated successfully.
-              </div>
+              <Alert className="border-green-200 bg-green-50 text-green-700">
+                <AlertDescription>Organization updated successfully.</AlertDescription>
+              </Alert>
             )}
 
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="sm:w-1/3">
                 <label htmlFor="orgName" className="block text-sm font-medium text-zinc-900 mb-1">
                   Organization name
                 </label>
               </div>
               <div className="sm:w-2/3 flex gap-3">
-                <input
+                <Input
                   id="orgName"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={!isOwner || loading}
-                  className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 disabled:bg-zinc-50 disabled:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                  className="flex-1"
                 />
                 {isOwner && (
-                  <button
+                  <Button
                     type="submit"
                     disabled={loading || name.trim() === "" || name === initialName}
-                    className="bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 shrink-0"
+                    className="shrink-0"
                   >
                     {loading ? "Saving..." : "Save changes"}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pt-6 border-t border-zinc-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-zinc-100">
               <div className="sm:w-1/3">
                 <label className="block text-sm font-medium text-zinc-900 mb-1">
                   Organization ID
                 </label>
               </div>
               <div className="sm:w-2/3">
-                <input
+                <Input
                   type="text"
                   value={organizationId}
                   readOnly
-                  className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm bg-zinc-50 text-zinc-500 font-mono"
+                  className="w-full bg-zinc-50 text-zinc-500 font-mono"
                 />
               </div>
             </div>
           </form>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {/* Access Settings Section */}
-      <section>
-        <h2 className="text-sm font-semibold tracking-wider text-zinc-500 uppercase mb-4">
-          Access
-        </h2>
-        <div className="border-t border-zinc-200">
-          <div className="py-6">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div className="sm:w-1/3">
-                <label className="block text-sm font-medium text-zinc-900 mb-1">
-                  Your role
-                </label>
-              </div>
-              <div className="sm:w-2/3">
-                <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-zinc-100 text-zinc-800">
-                  {role}
-                </span>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Access</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="sm:w-1/3">
+              <label className="block text-sm font-medium text-zinc-900 mb-1">
+                Your role
+              </label>
+            </div>
+            <div className="sm:w-2/3">
+              <Badge variant="secondary" className="font-medium">
+                {role}
+              </Badge>
             </div>
           </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }

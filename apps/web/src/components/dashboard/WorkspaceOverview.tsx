@@ -1,8 +1,14 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 export function WorkspaceOverview({ totalMembers }: { totalMembers: number }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm flex flex-col justify-center">
-      <div className="text-sm font-medium text-zinc-500 mb-1">Total Members</div>
-      <div className="text-3xl font-semibold text-zinc-900">{totalMembers}</div>
-    </div>
+    <Card className="flex flex-col justify-center h-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-zinc-500">Total Members</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-semibold text-zinc-900">{totalMembers}</div>
+      </CardContent>
+    </Card>
   );
 }
