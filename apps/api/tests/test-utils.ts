@@ -21,7 +21,12 @@ export async function createTestUser(app: FastifyInstance, prefix: string = 'tes
     throw new Error(`Failed to login test user: ${loginResponse.text}`);
   }
 
-  const cookies = loginResponse.headers['set-cookie'];
+  const setCookieHeader = loginResponse.headers['set-cookie'];
+  const cookies: string[] = Array.isArray(setCookieHeader)
+    ? setCookieHeader
+    : typeof setCookieHeader === 'string'
+      ? [setCookieHeader]
+      : [];
   return { email, password, cookies, userId: loginResponse.body.user.id };
 }
 

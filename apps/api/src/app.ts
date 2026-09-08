@@ -24,6 +24,36 @@ export function buildApp() {
     credentials: true,
   });
 
+  // Centralized Error Sanitization
+  app.setErrorHandler((error: any, request, reply) => {
+    const statusCode = typeof error?.statusCode === "number" ? error.statusCode : 500;
+
+    // Always log the full detailed error server-side
+    app.log.error(error);
+
+    // Client/validation errors (4xx): preserve informative message and status code
+    if (statusCode >= 400 && statusCode < 500) {
+      return reply.status(statusCode).send({
+        error: error?.message || "Bad Request",
+      });
+    }
+
+    // Server errors (5xx): in production, sanitize to prevent database/driver/stack trace leakage
+    if (process.env.NODE_ENV === "production") {
+      return reply.status(500).send({
+        error: "Internal Server Error",
+      });
+    }
+
+    // In non-production environments, retain error message for debugging
+    return reply.status(statusCode).send({
+      error: error?.message || "Internal Server Error",
+      statusCode,
+    });
+  });
+
+
+
   // Enable raw body for stripe webhook signatures
   app.register(rawBody, {
     field: "rawBody", 

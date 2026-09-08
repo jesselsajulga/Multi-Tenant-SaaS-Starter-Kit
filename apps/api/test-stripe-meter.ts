@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { prisma } from "./src/db";
 import { reportPendingUsageToStripe } from "./src/billing/stripe-meter";
 import { stripe } from "./src/stripe/client";
@@ -11,10 +12,9 @@ async function runTests() {
   let stripeCallCount = 0;
   let lastIdempotencyKey: string | undefined;
   
-  // @ts-ignore
-  stripe.billing = {
+  (stripe as any).billing = {
     meterEvents: {
-      create: async (payload: any, options?: { idempotencyKey?: string }) => {
+      create: async (payload: any, options?: { idempotencyKey?: string }): Promise<any> => {
         stripeCallCount++;
         lastIdempotencyKey = options?.idempotencyKey;
         
@@ -26,7 +26,8 @@ async function runTests() {
           event_name: payload.event_name,
           identifier: `req_${Date.now()}`,
           livemode: false,
-          payload: payload.payload
+          payload: payload.payload,
+          timestamp: new Date()
         };
       }
     }
@@ -43,8 +44,8 @@ async function runTests() {
       organizationId: org.id,
       metric: "API_CALLS",
       quantity: 100,
-      periodStart: new Date(),
-      periodEnd: new Date(),
+      syncedThroughTimestamp: new Date(),
+      syncedThroughId: "evt_missing_cust",
       idempotencyKey: `idem_missing_${ts}`,
       status: "PENDING"
     }
@@ -68,8 +69,8 @@ async function runTests() {
       organizationId: org.id,
       metric: "UNKNOWN_METRIC",
       quantity: 100,
-      periodStart: new Date(),
-      periodEnd: new Date(),
+      syncedThroughTimestamp: new Date(),
+      syncedThroughId: "evt_invalid_metric",
       idempotencyKey: `idem_invalid_${ts}`,
       status: "PENDING"
     }
@@ -85,8 +86,8 @@ async function runTests() {
       organizationId: org.id,
       metric: "API_CALLS",
       quantity: 50,
-      periodStart: new Date(),
-      periodEnd: new Date(),
+      syncedThroughTimestamp: new Date(),
+      syncedThroughId: "evt_happy",
       idempotencyKey: `idem_happy_${ts}`,
       status: "PENDING"
     }
@@ -107,8 +108,8 @@ async function runTests() {
       organizationId: org.id,
       metric: "STORAGE_MB",
       quantity: 500,
-      periodStart: new Date(),
-      periodEnd: new Date(),
+      syncedThroughTimestamp: new Date(),
+      syncedThroughId: "evt_crash",
       idempotencyKey: `idem_crash_${ts}`,
       status: "PENDING"
     }

@@ -66,13 +66,30 @@ jobs:
       run: npm install
       working-directory: ./apps/web
 
-    - name: Generate Prisma Client & Push Schema
+    - name: Provision app_user Role in PostgreSQL
+      run: |
+        PGPASSWORD=rootpassword psql -h localhost -U root -d saas_test_db -c "
+          DO \$\$ 
+          BEGIN 
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'app_user') THEN 
+              CREATE ROLE app_user WITH NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN; 
+            END IF; 
+          END \$\$;
+        "
+
+    - name: Generate Prisma Client & Deploy Migrations
       working-directory: ./apps/api
       run: |
         npx prisma generate
-        npm run db:setup
         npx prisma migrate deploy
-        npm run db:setup
+
+    - name: Verify Database Roles & Security Configuration
+      run: |
+        PGPASSWORD=rootpassword psql -h localhost -U root -d saas_test_db -c "
+          SELECT rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin 
+          FROM pg_roles WHERE rolname = 'app_user';
+        "
+
 
     - name: Build API
       working-directory: ./apps/api
