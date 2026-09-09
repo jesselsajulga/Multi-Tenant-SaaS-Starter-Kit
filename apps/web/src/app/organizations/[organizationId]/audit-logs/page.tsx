@@ -35,14 +35,18 @@ export default async function AuditLogsPage({ params }: { params: Promise<{ orga
   const initialData = !error && res ? await res.json() : { auditLogs: [], nextCursor: undefined };
 
   return (
-    <Container>
+    <Container className="space-y-6">
       <PageHeader 
+        breadcrumbs={[
+          { label: context.organization.name, href: `/organizations/${organizationId}/dashboard` },
+          { label: "Audit Logs" }
+        ]}
         title="Audit Logs"
-        description="A chronological ledger of events and actions within your organization."
+        description="Immutable chronological ledger and activity timeline for this organization."
       />
 
       {error ? (
-        <Alert variant="destructive" className="mt-8">
+        <Alert variant="destructive" className="mt-6">
           <ShieldAlert className="w-4 h-4" />
           <AlertTitle>Unable to load audit logs</AlertTitle>
           <AlertDescription>
@@ -50,7 +54,7 @@ export default async function AuditLogsPage({ params }: { params: Promise<{ orga
           </AlertDescription>
         </Alert>
       ) : (
-        <Card className="mt-8 overflow-hidden">
+        <Card className="overflow-hidden">
           <AuditLogTable 
             organizationId={organizationId} 
             initialData={initialData} 

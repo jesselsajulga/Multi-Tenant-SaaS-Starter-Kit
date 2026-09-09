@@ -67,7 +67,11 @@ export default async function TeamPage({ params }: { params: Promise<{ organizat
 
   return (
     <Container>
-      <TeamHeader organizationId={organizationId} isOwner={isOwner} />
+      <TeamHeader 
+        organizationId={organizationId} 
+        organizationName={context.organization.name}
+        isOwner={isOwner} 
+      />
 
       {members === null ? (
         <Alert variant="destructive" className="mb-8">

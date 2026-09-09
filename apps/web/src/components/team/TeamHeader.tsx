@@ -3,17 +3,20 @@ import { InviteMemberModal } from "./InviteMemberModal";
 
 interface TeamHeaderProps {
   organizationId: string;
+  organizationName?: string;
   isOwner: boolean;
 }
 
-export function TeamHeader({ organizationId, isOwner }: TeamHeaderProps) {
+export function TeamHeader({ organizationId, organizationName = "Workspace", isOwner }: TeamHeaderProps) {
   return (
-    <div className="mb-8">
-      <PageHeader
-        title="Team Management"
-        description="Manage who has access to this workspace."
-        actions={isOwner && <InviteMemberModal organizationId={organizationId} />}
-      />
-    </div>
+    <PageHeader
+      breadcrumbs={[
+        { label: organizationName, href: `/organizations/${organizationId}/dashboard` },
+        { label: "Team" }
+      ]}
+      title="Team"
+      description="Manage workspace members, roles, and pending invitations."
+      actions={isOwner && <InviteMemberModal organizationId={organizationId} />}
+    />
   );
 }

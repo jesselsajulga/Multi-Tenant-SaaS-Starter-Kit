@@ -78,7 +78,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ orga
     <Container>
       <DashboardGreeting 
         email={session.user.email} 
-        organizationName={context.organization.name} 
+        organizationName={context.organization.name}
+        organizationId={organizationId}
       />
 
       {members === null ? (
@@ -90,7 +91,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ orga
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-1">
-            <WorkspaceOverview totalMembers={members.length} />
+            <WorkspaceOverview totalMembers={members.length} organizationId={organizationId} />
           </div>
           
           {!usage.forbidden && (

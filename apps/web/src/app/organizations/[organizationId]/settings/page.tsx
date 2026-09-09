@@ -15,13 +15,17 @@ export default async function SettingsPage({ params }: { params: Promise<{ organ
   }
 
   return (
-    <Container className="max-w-3xl">
+    <Container className="max-w-3xl space-y-6">
       <PageHeader 
+        breadcrumbs={[
+          { label: context.organization.name, href: `/organizations/${organizationId}/dashboard` },
+          { label: "Settings" }
+        ]}
         title="Settings"
-        description="Manage your organization's configuration."
+        description="Manage your workspace profile and view access roles."
       />
 
-      <div className="mt-8 space-y-6">
+      <div className="space-y-6">
         <OrganizationSettingsForm 
           organizationId={organizationId}
           initialName={context.organization.name}

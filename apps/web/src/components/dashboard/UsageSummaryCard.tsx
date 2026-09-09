@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Activity, Cpu, HardDrive } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface UsageData {
@@ -10,50 +10,70 @@ interface UsageData {
 
 interface UsageSummaryCardProps {
   organizationId: string;
-  usageData: UsageData | null; // null if error occurred loading
+  usageData: UsageData | null;
   error: boolean;
 }
 
 export function UsageSummaryCard({ organizationId, usageData, error }: UsageSummaryCardProps) {
   return (
     <Card className="flex flex-col h-full">
-      <CardHeader>
-        <CardTitle>Usage — Last 30 Days</CardTitle>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-zinc-500">Resource Consumption</CardTitle>
+          <span className="text-xs text-zinc-400 font-mono">Last 30 days</span>
+        </div>
       </CardHeader>
       
-      <CardContent className="flex-1">
+      <CardContent className="flex-1 pb-4">
         {error ? (
-          <div className="flex items-center justify-center h-full text-zinc-500 text-sm bg-zinc-50 rounded-md p-4 border border-dashed border-zinc-200">
-            Unable to load usage data
+          <div className="flex items-center justify-center h-28 text-zinc-500 text-xs bg-zinc-50 rounded-md p-4 border border-dashed border-zinc-200">
+            Unable to load usage data from billing service
           </div>
         ) : !usageData ? (
-          <div className="flex items-center justify-center h-full text-zinc-500 text-sm bg-zinc-50 rounded-md p-4 border border-dashed border-zinc-200">
-            No usage recorded
+          <div className="flex items-center justify-center h-28 text-zinc-500 text-xs bg-zinc-50 rounded-md p-4 border border-dashed border-zinc-200">
+            No consumption recorded in this period
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
-              <span className="text-sm text-zinc-600">API Calls</span>
-              <span className="text-sm font-medium text-zinc-900">{usageData.apiCalls.toLocaleString()}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3 rounded-md bg-zinc-50 border border-zinc-100">
+              <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
+                <Activity className="w-3.5 h-3.5 text-zinc-400" />
+                <span>API Calls</span>
+              </div>
+              <div className="text-xl font-semibold text-zinc-950 tracking-tight">
+                {usageData.apiCalls.toLocaleString()}
+              </div>
             </div>
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
-              <span className="text-sm text-zinc-600">AI Tokens</span>
-              <span className="text-sm font-medium text-zinc-900">{usageData.aiTokens.toLocaleString()}</span>
+
+            <div className="p-3 rounded-md bg-zinc-50 border border-zinc-100">
+              <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
+                <Cpu className="w-3.5 h-3.5 text-zinc-400" />
+                <span>AI Tokens</span>
+              </div>
+              <div className="text-xl font-semibold text-zinc-950 tracking-tight">
+                {usageData.aiTokens.toLocaleString()}
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-600">Storage</span>
-              <span className="text-sm font-medium text-zinc-900">{usageData.storageMb.toLocaleString()} MB</span>
+
+            <div className="p-3 rounded-md bg-zinc-50 border border-zinc-100">
+              <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
+                <HardDrive className="w-3.5 h-3.5 text-zinc-400" />
+                <span>Storage</span>
+              </div>
+              <div className="text-xl font-semibold text-zinc-950 tracking-tight">
+                {usageData.storageMb.toLocaleString()} <span className="text-xs font-normal text-zinc-500">MB</span>
+              </div>
             </div>
           </div>
         )}
       </CardContent>
 
-      <CardFooter className="pt-4 border-t border-zinc-100">
+      <CardFooter className="pt-3 border-t border-zinc-100">
         <Link 
           href={`/organizations/${organizationId}/billing/usage`}
-          className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 w-max"
+          className="text-xs font-medium text-zinc-700 hover:text-zinc-950 flex items-center gap-1 transition-colors"
         >
-          View usage <ArrowRight className="w-4 h-4" />
+          Detailed usage analytics <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </CardFooter>
     </Card>
