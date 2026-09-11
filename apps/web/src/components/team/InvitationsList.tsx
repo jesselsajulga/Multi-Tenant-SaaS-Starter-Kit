@@ -40,6 +40,7 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       const res = await fetch(`${API_URL}/organizations/${organizationId}/invitations/${id}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (!res.ok) {

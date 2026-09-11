@@ -58,4 +58,13 @@ describe('Invitations API', () => {
     expect(response.status).toBe(403);
     expect(response.body.error).toContain('Forbidden');
   });
+
+  it('should reject unauthenticated request with 401', async () => {
+    const response = await request(app.server)
+      .post(`/organizations/${orgId}/invitations`)
+      .send({ email: 'unauth-invitee@example.com' });
+      
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Unauthorized');
+  });
 });

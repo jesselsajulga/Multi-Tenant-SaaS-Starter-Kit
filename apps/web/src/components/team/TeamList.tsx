@@ -48,6 +48,7 @@ export function TeamList({ organizationId, members, isOwner }: TeamListProps) {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       const res = await fetch(`${API_URL}/organizations/${organizationId}/members/${userId}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (!res.ok) {

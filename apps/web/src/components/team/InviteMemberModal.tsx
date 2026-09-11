@@ -27,6 +27,20 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const resetForm = () => {
+    setEmail("");
+    setError(null);
+    setSuccess(false);
+    setLoading(false);
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      resetForm();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -37,6 +51,7 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       const res = await fetch(`${API_URL}/organizations/${organizationId}/invitations`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
@@ -48,13 +63,12 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
       }
 
       setSuccess(true);
-      setEmail("");
       router.refresh();
       
-      // Auto close after 2s
+      // Auto close after 2s and reset form
       setTimeout(() => {
         setIsOpen(false);
-        setSuccess(false);
+        resetForm();
       }, 2000);
     } catch (err: any) {
       setError(err.message);
@@ -64,7 +78,7 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button>Invite Member</Button>
       </DialogTrigger>
@@ -122,7 +136,7 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setIsOpen(false)}
+              onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>
