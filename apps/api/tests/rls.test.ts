@@ -373,19 +373,21 @@ describe('Database Row-Level Security (RLS) Isolation Suite', () => {
         SELECT relname, relrowsecurity, relforcerowsecurity 
         FROM pg_class 
         WHERE relnamespace = 'public'::regnamespace 
-          AND relname IN ('Project', 'Subscription', 'AuditLog', 'FeatureFlag', 'UsageEvent', 'OrganizationInvitation')
+          AND relname IN ('Project', 'Subscription', 'AuditLog', 'FeatureFlag', 'UsageEvent', 'OrganizationInvitation', 'Notification')
         ORDER BY relname;
       `);
 
       const map = new Map(res.rows.map((r) => [r.relname, r]));
 
-      // Project: must be enabled & forced
+      // Project, Subscription, Notification: must be enabled & forced
       expect(map.get('Project')?.relrowsecurity).toBe(true);
       expect(map.get('Project')?.relforcerowsecurity).toBe(true);
 
-      // Subscription: must be enabled & forced
       expect(map.get('Subscription')?.relrowsecurity).toBe(true);
       expect(map.get('Subscription')?.relforcerowsecurity).toBe(true);
+
+      expect(map.get('Notification')?.relrowsecurity).toBe(true);
+      expect(map.get('Notification')?.relforcerowsecurity).toBe(true);
 
       // AuditLog, FeatureFlag, UsageEvent, OrganizationInvitation: must be enabled
       expect(map.get('AuditLog')?.relrowsecurity).toBe(true);
@@ -394,4 +396,112 @@ describe('Database Row-Level Security (RLS) Isolation Suite', () => {
       expect(map.get('OrganizationInvitation')?.relrowsecurity).toBe(true);
     });
   });
+
+  describe('7. Notification & Pre-Membership Invitation Recipient RLS Verification', () => {
+    it('app_user with userA context can see only User A notifications and never User B notifications', async () => {
+      // Seed notifications for User A and User B using admin prisma
+      const nA = await prisma.notification.create({
+        data: {
+          userId: userAId,
+          type: 'TEST_A',
+          title: 'Notification for User A',
+        },
+      });
+
+      const nB = await prisma.notification.create({
+        data: {
+          userId: userBId,
+          type: 'TEST_B',
+          title: 'Notification for User B',
+        },
+      });
+
+      const client = await rawPool.connect();
+      try {
+        await client.query('BEGIN;');
+        await client.query('SET LOCAL ROLE app_user;');
+        await client.query(`SELECT set_config('app.current_user_id', '${userAId}', TRUE);`);
+
+        const resA = await client.query('SELECT id, title FROM "Notification";');
+        expect(resA.rows.map((r: any) => r.id)).toContain(nA.id);
+        expect(resA.rows.map((r: any) => r.id)).not.toContain(nB.id);
+
+        await client.query('ROLLBACK;');
+
+        // Context User B
+        await client.query('BEGIN;');
+        await client.query('SET LOCAL ROLE app_user;');
+        await client.query(`SELECT set_config('app.current_user_id', '${userBId}', TRUE);`);
+
+        const resB = await client.query('SELECT id, title FROM "Notification";');
+        expect(resB.rows.map((r: any) => r.id)).toContain(nB.id);
+        expect(resB.rows.map((r: any) => r.id)).not.toContain(nA.id);
+
+        await client.query('ROLLBACK;');
+      } finally {
+        client.release();
+        await prisma.notification.deleteMany({ where: { id: { in: [nA.id, nB.id] } } });
+      }
+    });
+
+    it('app_user with recipient email context can see invitations sent to that email across organizations', async () => {
+      const crypto = require('crypto');
+      const emailRecipient = `invitee-recipient-${Date.now()}@example.com`;
+      const tokenA = crypto.randomBytes(32).toString('hex');
+      const tokenB = crypto.randomBytes(32).toString('hex');
+
+      const invOrgA = await prisma.organizationInvitation.create({
+        data: {
+          organizationId: orgAId,
+          email: emailRecipient,
+          inviterId: userAId,
+          tokenHash: crypto.createHash('sha256').update(tokenA).digest('hex'),
+          expiresAt: new Date(Date.now() + 7 * 86400000),
+        },
+      });
+
+      const invOrgB = await prisma.organizationInvitation.create({
+        data: {
+          organizationId: orgBId,
+          email: emailRecipient,
+          inviterId: userBId,
+          tokenHash: crypto.createHash('sha256').update(tokenB).digest('hex'),
+          expiresAt: new Date(Date.now() + 7 * 86400000),
+        },
+      });
+
+      const otherInv = await prisma.organizationInvitation.create({
+        data: {
+          organizationId: orgAId,
+          email: 'someone-else@example.com',
+          inviterId: userAId,
+          tokenHash: crypto.createHash('sha256').update('other').digest('hex'),
+          expiresAt: new Date(Date.now() + 7 * 86400000),
+        },
+      });
+
+      const client = await rawPool.connect();
+      try {
+        await client.query('BEGIN;');
+        await client.query('SET LOCAL ROLE app_user;');
+        // No tenant set, recipient email set
+        await client.query(`SELECT set_config('app.current_user_email', '${emailRecipient}', TRUE);`);
+        await client.query("SELECT set_config('app.current_tenant_id', '', TRUE);");
+
+        const res = await client.query('SELECT id, email FROM "OrganizationInvitation";');
+        const ids = res.rows.map((r: any) => r.id);
+        expect(ids).toContain(invOrgA.id);
+        expect(ids).toContain(invOrgB.id);
+        expect(ids).not.toContain(otherInv.id);
+
+        await client.query('ROLLBACK;');
+      } finally {
+        client.release();
+        await prisma.organizationInvitation.deleteMany({
+          where: { id: { in: [invOrgA.id, invOrgB.id, otherInv.id] } },
+        });
+      }
+    });
+  });
 });
+

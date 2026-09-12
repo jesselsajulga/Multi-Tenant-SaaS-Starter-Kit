@@ -24,6 +24,7 @@ model User {
   invitationsSent OrganizationInvitation[]
   auditLogs       AuditLog[]
   identities      Identity[]
+  notifications   Notification[]
 }
 
 model Identity {
@@ -153,10 +154,28 @@ model OrganizationInvitation {
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Restrict)
+  notifications  Notification[]
 
   @@index([organizationId])
   @@index([expiresAt])
   @@index([email])
+}
+
+model Notification {
+  id             String    @id @default(uuid())
+  userId         String
+  type           String    // e.g. "MEMBER_INVITATION"
+  title          String
+  message        String?
+  invitationId   String?
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitation     OrganizationInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 model AuditLog {

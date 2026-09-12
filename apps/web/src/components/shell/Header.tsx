@@ -1,7 +1,8 @@
-import { Search, Bell } from "lucide-react";
+import { Search } from "lucide-react";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { UserMenu } from "./UserMenu";
 import { MobileNav } from "./MobileNav";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import type { SessionData, OrganizationContext } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 
@@ -33,12 +34,9 @@ export function Header({ session, organizations, currentOrganizationId }: Header
           />
         </div>
         
-        <button 
-          aria-label="Notifications"
-          className="hover:text-zinc-900 transition-colors hidden md:flex items-center justify-center w-8 h-8 rounded-full hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2"
-        >
-          <Bell className="w-5 h-5" />
-        </button>
+        <div className="hidden md:flex items-center">
+          <NotificationBell />
+        </div>
         
         <UserMenu session={session} />
       </div>

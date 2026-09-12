@@ -29,6 +29,12 @@ export async function invitationRoutes(app: FastifyInstance) {
 
     const { email } = result.data;
 
+    // Fetch organization name for notification copy
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { name: true }
+    });
+
     // Check if the user is already a member
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -78,6 +84,19 @@ export async function invitationRoutes(app: FastifyInstance) {
           metadata: { invitedEmail: email, role: "MEMBER" }
         });
 
+        // If the invited user already exists, create in-app notification for the recipient
+        if (existingUser) {
+          await prisma.notification.create({
+            data: {
+              userId: existingUser.id,
+              type: "MEMBER_INVITATION",
+              title: "Workspace Invitation",
+              message: `You have been invited to join ${org?.name || "the workspace"}`,
+              invitationId: inv.id,
+            }
+          });
+        }
+
         return inv;
       });
 
@@ -100,6 +119,7 @@ export async function invitationRoutes(app: FastifyInstance) {
       throw error;
     }
   });
+
   // GET /organizations/:organizationId/invitations
   app.get("/organizations/:organizationId/invitations", async (request, reply) => {
     const auth = await authenticateRequest(request);
@@ -162,20 +182,214 @@ export async function invitationRoutes(app: FastifyInstance) {
       return reply.status(409).send({ error: "Only PENDING invitations can be revoked" });
     }
 
-    const updated = await access.tenantPrisma.organizationInvitation.update({
-      where: { id },
-      data: { status: "CANCELED" },
-      select: {
-        id: true,
-        email: true,
-        status: true
-      }
+    const updated = await access.tenantPrisma.$transaction(async (tx) => {
+      const canceled = await tx.organizationInvitation.update({
+        where: { id },
+        data: { status: "CANCELED" },
+        select: {
+          id: true,
+          email: true,
+          status: true
+        }
+      });
+
+      // Mark associated notifications as read using trusted prisma so tenant revoker is not blocked by user-scoped RLS
+      await prisma.notification.updateMany({
+        where: { invitationId: id, readAt: null },
+        data: { readAt: new Date() }
+      });
+
+      return canceled;
     });
 
     return reply.status(200).send({ message: "Invitation revoked", invitation: updated });
   });
 
-  // POST /invitations/accept
+  // GET /invitations/received (Recipient inbox query, user-scoped RLS)
+  app.get("/invitations/received", async (request, reply) => {
+    const auth = await authenticateRequest(request);
+    if (!auth) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const userPrisma = (await import("../db")).getUserPrisma(auth.user.id, auth.user.email);
+
+    const invitations = await userPrisma.organizationInvitation.findMany({
+      where: {
+        email: auth.user.email,
+        status: "PENDING",
+        expiresAt: { gt: new Date() }
+      },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        expiresAt: true,
+        createdAt: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
+        inviter: {
+          select: {
+            email: true,
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return reply.status(200).send({ invitations });
+  });
+
+  // POST /invitations/:id/accept (Authenticated recipient in-app acceptance with atomic concurrency lock)
+  app.post("/invitations/:id/accept", async (request, reply) => {
+    const auth = await authenticateRequest(request);
+    if (!auth) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const { id } = request.params as { id: string };
+
+    const invitation = await prisma.organizationInvitation.findUnique({
+      where: { id }
+    });
+
+    if (!invitation || invitation.email !== auth.user.email) {
+      return reply.status(404).send({ error: "Invitation not found" });
+    }
+
+    if (invitation.status !== "PENDING") {
+      return reply.status(409).send({ error: "Invitation is no longer pending" });
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      return reply.status(409).send({ error: "Invitation has expired" });
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Atomic conditional update to prevent double-accept race conditions
+        const result = await tx.organizationInvitation.updateMany({
+          where: {
+            id,
+            email: auth.user.email,
+            status: "PENDING",
+            expiresAt: { gt: new Date() },
+          },
+          data: { status: "ACCEPTED" }
+        });
+
+        if (result.count === 0) {
+          throw new Error("ALREADY_PROCESSED");
+        }
+
+        await tx.organizationMember.create({
+          data: {
+            organizationId: invitation.organizationId,
+            userId: auth.user.id,
+            role: invitation.role,
+          }
+        });
+
+        await createAuditLog(tx, {
+          organizationId: invitation.organizationId,
+          actorId: auth.user.id,
+          actorSnapshot: { email: auth.user.email },
+          action: "MEMBER_JOINED",
+          resourceType: "OrganizationMember",
+          resourceId: auth.user.id,
+          metadata: { invitationId: id }
+        });
+
+        // Mark associated notifications as read
+        await tx.notification.updateMany({
+          where: { userId: auth.user.id, invitationId: id, readAt: null },
+          data: { readAt: new Date() }
+        });
+      });
+
+      return reply.status(200).send({ message: "Invitation accepted successfully" });
+    } catch (error: any) {
+      if (error.message === "ALREADY_PROCESSED") {
+        return reply.status(409).send({ error: "Invitation is no longer pending or has expired" });
+      }
+      if (error.code === "P2002") {
+        return reply.status(409).send({ error: "You are already a member of this organization" });
+      }
+      return reply.status(500).send({ error: "Failed to accept invitation" });
+    }
+  });
+
+  // POST /invitations/:id/decline (Authenticated recipient in-app decline)
+  app.post("/invitations/:id/decline", async (request, reply) => {
+    const auth = await authenticateRequest(request);
+    if (!auth) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const { id } = request.params as { id: string };
+
+    const invitation = await prisma.organizationInvitation.findUnique({
+      where: { id }
+    });
+
+    if (!invitation || invitation.email !== auth.user.email) {
+      return reply.status(404).send({ error: "Invitation not found" });
+    }
+
+    if (invitation.status !== "PENDING") {
+      return reply.status(409).send({ error: "Invitation is no longer pending" });
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      return reply.status(409).send({ error: "Invitation has expired" });
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const result = await tx.organizationInvitation.updateMany({
+          where: {
+            id,
+            email: auth.user.email,
+            status: "PENDING",
+            expiresAt: { gt: new Date() },
+          },
+          data: { status: "REJECTED" }
+        });
+
+        if (result.count === 0) {
+          throw new Error("ALREADY_PROCESSED");
+        }
+
+        await createAuditLog(tx, {
+          organizationId: invitation.organizationId,
+          actorId: auth.user.id,
+          actorSnapshot: { email: auth.user.email },
+          action: "MEMBER_INVITATION_DECLINED",
+          resourceType: "OrganizationInvitation",
+          resourceId: id,
+          metadata: { invitedEmail: auth.user.email }
+        });
+
+        await tx.notification.updateMany({
+          where: { userId: auth.user.id, invitationId: id, readAt: null },
+          data: { readAt: new Date() }
+        });
+      });
+
+      return reply.status(200).send({ message: "Invitation declined" });
+    } catch (error: any) {
+      if (error.message === "ALREADY_PROCESSED") {
+        return reply.status(409).send({ error: "Invitation is no longer pending or has expired" });
+      }
+      return reply.status(500).send({ error: "Failed to decline invitation" });
+    }
+  });
+
+  // POST /invitations/accept (Legacy / email-token based endpoint)
   app.post("/invitations/accept", async (request, reply) => {
     const auth = await authenticateRequest(request);
     if (!auth) {
@@ -239,6 +453,21 @@ export async function invitationRoutes(app: FastifyInstance) {
             role: "MEMBER" // as per phase 4.2.1 hardcoding, invitations grant MEMBER
           }
         });
+
+        await createAuditLog(tx, {
+          organizationId: invitation.organizationId,
+          actorId: auth.user.id,
+          actorSnapshot: { email: auth.user.email },
+          action: "MEMBER_JOINED",
+          resourceType: "OrganizationMember",
+          resourceId: auth.user.id,
+          metadata: { invitationId: invitation.id }
+        });
+
+        await tx.notification.updateMany({
+          where: { userId: auth.user.id, invitationId: invitation.id, readAt: null },
+          data: { readAt: new Date() }
+        });
       });
 
       return reply.status(200).send({ message: "Invitation accepted successfully" });
@@ -247,7 +476,7 @@ export async function invitationRoutes(app: FastifyInstance) {
     }
   });
 
-  // POST /invitations/reject
+  // POST /invitations/reject (Legacy / email-token based endpoint)
   app.post("/invitations/reject", async (request, reply) => {
     const auth = await authenticateRequest(request);
     if (!auth) {
@@ -282,12 +511,32 @@ export async function invitationRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: "Invitation email does not match authenticated user" });
     }
 
-    const updated = await prisma.organizationInvitation.update({
-      where: { id: invitation.id },
-      data: { status: "REJECTED" },
-      select: { id: true, status: true }
+    const updated = await prisma.$transaction(async (tx) => {
+      const rej = await tx.organizationInvitation.update({
+        where: { id: invitation.id },
+        data: { status: "REJECTED" },
+        select: { id: true, status: true }
+      });
+
+      await createAuditLog(tx, {
+        organizationId: invitation.organizationId,
+        actorId: auth.user.id,
+        actorSnapshot: { email: auth.user.email },
+        action: "MEMBER_INVITATION_DECLINED",
+        resourceType: "OrganizationInvitation",
+        resourceId: invitation.id,
+        metadata: { invitedEmail: auth.user.email }
+      });
+
+      await tx.notification.updateMany({
+        where: { userId: auth.user.id, invitationId: invitation.id, readAt: null },
+        data: { readAt: new Date() }
+      });
+
+      return rej;
     });
 
     return reply.status(200).send({ message: "Invitation rejected", invitation: updated });
   });
 }
+

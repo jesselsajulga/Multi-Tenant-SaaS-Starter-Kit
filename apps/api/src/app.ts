@@ -11,6 +11,7 @@ import { invitationRoutes } from "./invitations/routes";
 import { auditRoutes } from "./audit/routes";
 import { featureFlagsRoutes } from "./feature-flags/routes";
 import { ssoRoutes } from "./auth/sso/routes";
+import { notificationRoutes } from "./notifications/routes";
 
 import rawBody from "fastify-raw-body";
 
@@ -80,6 +81,7 @@ export function buildApp() {
   app.register(auditRoutes);
   app.register(featureFlagsRoutes);
   app.register(ssoRoutes);
+  app.register(notificationRoutes);
 
   return app;
 }

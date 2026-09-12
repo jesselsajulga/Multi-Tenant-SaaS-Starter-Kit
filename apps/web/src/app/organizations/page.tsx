@@ -1,16 +1,39 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
+import { cookies } from "next/headers";
 import { requireSession, getUserOrganizations } from "@/lib/auth";
 import { UserMenu } from "@/components/shell/UserMenu";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { CreateWorkspaceModal } from "@/components/shell/CreateWorkspaceModal";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+async function getPendingInvitationsCount(sessionCookie: string): Promise<number> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/invitations/received`, {
+      headers: {
+        Cookie: `session=${sessionCookie}`,
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return (data.invitations || []).length;
+  } catch {
+    return 0;
+  }
+}
 
 export default async function OrganizationsPage() {
   const session = await requireSession();
   const organizations = await getUserOrganizations();
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value || "";
+  const pendingInvitationsCount = await getPendingInvitationsCount(sessionCookie);
 
-  // If exactly 1 workspace, automatically open it
-  if (organizations.length === 1) {
+  // If exactly 1 workspace and no pending invitations to review, automatically open it
+  if (organizations.length === 1 && pendingInvitationsCount === 0) {
     redirect(`/organizations/${organizations[0].organization.id}/dashboard`);
   }
 
@@ -18,9 +41,35 @@ export default async function OrganizationsPage() {
     <div className="min-h-screen bg-zinc-50 flex flex-col font-sans text-zinc-900">
       <header className="h-14 border-b border-zinc-200 bg-white flex items-center justify-between px-6">
         <div className="font-semibold text-lg tracking-tight">SaaSKit</div>
-        <UserMenu session={session} />
+        <div className="flex items-center gap-4">
+          <NotificationBell />
+          <UserMenu session={session} />
+        </div>
       </header>
       <main className="flex-1 flex flex-col items-center justify-center p-8">
+        {pendingInvitationsCount > 0 && (
+          <div className="max-w-2xl w-full mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-md">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-indigo-950">
+                  You have {pendingInvitationsCount} pending {pendingInvitationsCount === 1 ? "invitation" : "invitations"}
+                </p>
+                <p className="text-xs text-indigo-700">
+                  Review and accept invitations to join other workspaces.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/invitations"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors shadow-sm whitespace-nowrap"
+            >
+              Review Invitations <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
         
         {organizations.length === 0 ? (
           <div className="max-w-md w-full bg-white border border-zinc-200 p-8 rounded-lg shadow-sm text-center">
