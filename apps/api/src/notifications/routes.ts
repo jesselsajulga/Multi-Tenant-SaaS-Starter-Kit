@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { authenticateRequest } from "../auth/authenticate";
-import { getUserPrisma } from "../db";
+import { authenticateRequest } from "../auth/authenticate.js";
+import { getUserPrisma } from "../db.js";
 
 export async function notificationRoutes(app: FastifyInstance) {
   // GET /notifications

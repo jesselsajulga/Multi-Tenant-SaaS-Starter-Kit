@@ -11,7 +11,7 @@ import { invitationRoutes } from "./invitations/routes";
 import { auditRoutes } from "./audit/routes";
 import { featureFlagsRoutes } from "./feature-flags/routes";
 import { ssoRoutes } from "./auth/sso/routes";
-import { notificationRoutes } from "./notifications/routes";
+import { notificationRoutes } from "./notifications/routes.js";
 
 import rawBody from "fastify-raw-body";
 

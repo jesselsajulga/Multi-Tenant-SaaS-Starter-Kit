@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { prisma } from "../db";
-import { authenticateRequest } from "../auth/authenticate";
+import { prisma, getUserPrisma } from "../db.js";
+import { authenticateRequest } from "../auth/authenticate.js";
 import { authorizeOrganizationAccess } from "../auth/authorize";
 import { createInvitationSchema, processInvitationSchema } from "./schema";
 import crypto from "crypto";
@@ -212,7 +212,7 @@ export async function invitationRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "Unauthorized" });
     }
 
-    const userPrisma = (await import("../db")).getUserPrisma(auth.user.id, auth.user.email);
+    const userPrisma = getUserPrisma(auth.user.id, auth.user.email);
 
     const invitations = await userPrisma.organizationInvitation.findMany({
       where: {
