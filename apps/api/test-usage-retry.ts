@@ -22,8 +22,7 @@ async function runTests() {
   let stripeCallCount = 0;
   let lastIdempotencyKey: string | undefined;
   
-  // @ts-ignore
-  stripe.billing = {
+  (stripe as any).billing = {
     meterEvents: {
       create: async (payload: any, options?: { idempotencyKey?: string }) => {
         stripeCallCount++;
@@ -36,8 +35,9 @@ async function runTests() {
           event_name: payload.event_name,
           identifier: `req_${Date.now()}`,
           livemode: false,
-          payload: payload.payload
-        };
+          payload: payload.payload,
+          timestamp: Math.floor(Date.now() / 1000)
+        } as any;
       }
     }
   };
