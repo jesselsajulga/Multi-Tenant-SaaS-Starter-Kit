@@ -193,6 +193,16 @@ export async function invitationRoutes(app: FastifyInstance) {
         }
       });
 
+      await createAuditLog(tx, {
+        organizationId,
+        actorId: auth.user.id,
+        actorSnapshot: { email: auth.user.email },
+        action: "MEMBER_INVITATION_REVOKED",
+        resourceType: "OrganizationInvitation",
+        resourceId: id,
+        metadata: { invitedEmail: invitation.email }
+      });
+
       // Mark associated notifications as read using trusted prisma so tenant revoker is not blocked by user-scoped RLS
       await prisma.notification.updateMany({
         where: { invitationId: id, readAt: null },

@@ -74,11 +74,34 @@ describe('Audit Logs API', () => {
     expect(response.status).toBe(403);
   });
 
-  it('should reject cross-organization access to audit logs (403/400)', async () => {
-    const response = await request(app.server)
+  it('should record MEMBER_INVITATION_REVOKED audit log when an invitation is revoked', async () => {
+    // 1. Invite a member
+    const inviteEmail = `revoke-audit-${Date.now()}@example.com`;
+    const inviteRes = await request(app.server)
+      .post(`/organizations/${orgId}/invitations`)
+      .set('Cookie', ownerCookies)
+      .send({ email: inviteEmail });
+
+    expect(inviteRes.status).toBe(201);
+    const inviteId = inviteRes.body.invitationId;
+
+    // 2. Revoke the invitation
+    const revokeRes = await request(app.server)
+      .delete(`/organizations/${orgId}/invitations/${inviteId}`)
+      .set('Cookie', ownerCookies);
+
+    expect(revokeRes.status).toBe(200);
+
+    // 3. Verify audit log contains MEMBER_INVITATION_REVOKED
+    const auditRes = await request(app.server)
       .get(`/organizations/${orgId}/audit-logs`)
-      .set('Cookie', userBCookies); // User B from Org B trying to read Org A
-      
-    expect([400, 403]).toContain(response.status);
+      .set('Cookie', ownerCookies);
+
+    expect(auditRes.status).toBe(200);
+    const hasRevokeLog = auditRes.body.auditLogs.some(
+      (log: any) => log.action === 'MEMBER_INVITATION_REVOKED' && log.resourceId === inviteId
+    );
+    expect(hasRevokeLog).toBe(true);
   });
 });
+

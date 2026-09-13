@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Spinner } from "@/components/ui/spinner";
 
 interface InviteMemberModalProps {
   organizationId: string;
@@ -35,6 +36,10 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
   };
 
   const handleOpenChange = (open: boolean) => {
+    // Prevent accidental dismissal while request is in flight
+    if (loading && !open) {
+      return;
+    }
     setIsOpen(open);
     if (!open) {
       resetForm();
@@ -43,6 +48,8 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || success) return;
+
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -56,10 +63,15 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
         body: JSON.stringify({ email }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        // Fallback for non-JSON responses
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to invite member");
+        throw new Error(data.error || `Failed to invite member (HTTP ${res.status})`);
       }
 
       setSuccess(true);
@@ -71,7 +83,7 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
         resetForm();
       }, 2000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to invite member");
     } finally {
       setLoading(false);
     }
@@ -109,6 +121,7 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
                 id="email"
                 type="email"
                 required
+                disabled={loading || success}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="colleague@example.com"
@@ -136,12 +149,26 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
             <Button
               type="button"
               variant="secondary"
+              disabled={loading || success}
               onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || success}>
-              {loading ? "Sending..." : "Send Invitation"}
+            <Button
+              type="submit"
+              disabled={loading || success}
+              className={success ? "!bg-green-600 hover:!bg-green-600 !text-white" : ""}
+            >
+              {success ? (
+                "Invitation sent!"
+              ) : loading ? (
+                <>
+                  <Spinner size="sm" className="mr-2 text-zinc-50" />
+                  <span>Sending invitation...</span>
+                </>
+              ) : (
+                "Send Invitation"
+              )}
             </Button>
           </div>
         </form>

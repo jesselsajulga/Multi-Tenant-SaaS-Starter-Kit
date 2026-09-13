@@ -23,6 +23,8 @@ export function buildApp() {
   app.register(cors, {
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
     credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-organization-id"],
   });
 
   // Centralized Error Sanitization

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Clock, XCircle, MailCheck } from "lucide-react";
 
@@ -32,6 +33,7 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
   const [error, setError] = useState<string | null>(null);
 
   const handleRevoke = async (id: string, email: string) => {
+    if (loadingId !== null) return;
     if (!confirm(`Are you sure you want to revoke the invitation for ${email}?`)) return;
     
     setLoadingId(id);
@@ -44,13 +46,19 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to revoke invitation");
+        let errorMessage = "Failed to revoke invitation";
+        try {
+          const data = await res.json();
+          if (data.error) errorMessage = data.error;
+        } catch {
+          errorMessage = `Request failed with status ${res.status}`;
+        }
+        throw new Error(errorMessage);
       }
 
       router.refresh();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to revoke invitation");
     } finally {
       setLoadingId(null);
     }
@@ -102,43 +110,57 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 text-sm">
-              {pending.map((inv) => (
-                <tr key={inv.id} className="hover:bg-zinc-50/60 transition-colors">
-                  <td className="px-5 py-3 font-medium text-xs text-zinc-900">
-                    {inv.email}
-                  </td>
-                  <td className="px-5 py-3 text-xs text-zinc-500">
-                    {inv.inviter?.email || "Workspace Owner"}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 font-medium">
-                      <Clock className="w-3 h-3 text-amber-500" />
-                      Pending
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-xs text-zinc-500 font-mono">
-                    {new Date(inv.expiresAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric"
-                    })}
-                  </td>
-                  {isOwner && (
-                    <td className="px-5 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRevoke(inv.id, inv.email)}
-                        disabled={loadingId === inv.id}
-                        className="h-7 px-2 text-xs text-zinc-500 hover:text-red-600 hover:bg-red-50"
-                      >
-                        <XCircle className="w-3.5 h-3.5 mr-1" />
-                        {loadingId === inv.id ? "Revoking..." : "Revoke"}
-                      </Button>
+              {pending.map((inv) => {
+                const isItemRevoking = loadingId === inv.id;
+                const isAnyRevoking = loadingId !== null;
+
+                return (
+                  <tr key={inv.id} className="hover:bg-zinc-50/60 transition-colors">
+                    <td className="px-5 py-3 font-medium text-xs text-zinc-900">
+                      {inv.email}
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className="px-5 py-3 text-xs text-zinc-500">
+                      {inv.inviter?.email || "Workspace Owner"}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 font-medium">
+                        <Clock className="w-3 h-3 text-amber-500" />
+                        Pending
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-xs text-zinc-500 font-mono">
+                      {new Date(inv.expiresAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                      })}
+                    </td>
+                    {isOwner && (
+                      <td className="px-5 py-3 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRevoke(inv.id, inv.email)}
+                          disabled={isAnyRevoking}
+                          className="h-7 px-2 text-xs text-zinc-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {isItemRevoking ? (
+                            <>
+                              <Spinner size="sm" className="mr-1.5 text-red-600" />
+                              <span>Revoking...</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3.5 h-3.5 mr-1" />
+                              <span>Revoke</span>
+                            </>
+                          )}
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
