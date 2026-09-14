@@ -82,6 +82,7 @@ export default async function TeamPage({ params }: { params: Promise<{ organizat
       ) : (
         <TeamList 
           organizationId={organizationId} 
+          organizationName={context.organization.name}
           members={members} 
           isOwner={isOwner} 
         />

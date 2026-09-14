@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma, getUserPrisma } from "../db.js";
 import { authenticateRequest } from "../auth/authenticate.js";
 import { authorizeOrganizationAccess } from "../auth/authorize";
-import { createInvitationSchema, processInvitationSchema } from "./schema";
+import { createInvitationSchema, processInvitationSchema, verifyInvitationQuerySchema } from "./schema";
 import crypto from "crypto";
 import { createAuditLog } from "../audit/logger";
 
@@ -547,6 +547,64 @@ export async function invitationRoutes(app: FastifyInstance) {
     });
 
     return reply.status(200).send({ message: "Invitation rejected", invitation: updated });
+  });
+
+  // GET /invitations/verify (Public endpoint to verify invitation status before acceptance)
+  app.get("/invitations/verify", async (request, reply) => {
+    const parseResult = verifyInvitationQuerySchema.safeParse(request.query);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: "Invalid or missing invitation token",
+        details: parseResult.error.flatten(),
+      });
+    }
+
+    const { token } = parseResult.data;
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const invitation = await prisma.organizationInvitation.findUnique({
+      where: { tokenHash },
+      select: {
+        status: true,
+        expiresAt: true,
+        organization: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!invitation) {
+      return reply.status(404).send({
+        status: "INVALID",
+        error: "Invitation not found or invalid",
+      });
+    }
+
+    const organizationName = invitation.organization?.name || "Workspace";
+
+    // Check expiration if it was still pending
+    if (invitation.status === "PENDING" && invitation.expiresAt < new Date()) {
+      return reply.status(200).send({
+        status: "EXPIRED",
+        organizationName,
+      });
+    }
+
+    // Map internal CANCELED status to external REVOKED
+    if (invitation.status === "CANCELED") {
+      return reply.status(200).send({
+        status: "REVOKED",
+        organizationName,
+      });
+    }
+
+    // Return status: PENDING, ACCEPTED, or REJECTED
+    return reply.status(200).send({
+      status: invitation.status,
+      organizationName,
+    });
   });
 }
 

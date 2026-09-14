@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Clock, XCircle, MailCheck } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export interface InvitationData {
   id: string;
@@ -29,24 +29,39 @@ interface InvitationsListProps {
 
 export function InvitationsList({ organizationId, invitations, isOwner }: InvitationsListProps) {
   const router = useRouter();
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
-  const handleRevoke = async (id: string, email: string) => {
-    if (loadingId !== null) return;
-    if (!confirm(`Are you sure you want to revoke the invitation for ${email}?`)) return;
-    
-    setLoadingId(id);
-    setError(null);
+  // State for destructive revocation confirmation dialog
+  const [confirmInvitation, setConfirmInvitation] = useState<{ id: string; email: string } | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+
+  const handleOpenRevokeDialog = (id: string, email: string) => {
+    setDialogError(null);
+    setConfirmInvitation({ id, email });
+  };
+
+  const handleConfirmRevoke = async () => {
+    if (!confirmInvitation || isRevoking) return;
+
+    setIsRevoking(true);
+    setDialogError(null);
+
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const res = await fetch(`${API_URL}/organizations/${organizationId}/invitations/${id}`, {
+
+      // Match standard minimum loading duration from auth & invite flows so the spinner is clearly visible
+      const minDelay = new Promise((resolve) => setTimeout(resolve, 2500));
+
+      const fetchPromise = fetch(`${API_URL}/organizations/${organizationId}/invitations/${confirmInvitation.id}`, {
         method: "DELETE",
         credentials: "include",
       });
 
+      const [res] = await Promise.all([fetchPromise, minDelay]);
+
       if (!res.ok) {
-        let errorMessage = "Failed to revoke invitation";
+        let errorMessage = "Unable to revoke this invitation. Please try again.";
         try {
           const data = await res.json();
           if (data.error) errorMessage = data.error;
@@ -56,11 +71,14 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
         throw new Error(errorMessage);
       }
 
+      // Success: close modal and refresh team/invitations data
+      setConfirmInvitation(null);
       router.refresh();
     } catch (err: any) {
-      setError(err.message || "Failed to revoke invitation");
+      // Keep modal open and display actionable error for retry
+      setDialogError(err.message || "Unable to revoke this invitation. Please try again.");
     } finally {
-      setLoadingId(null);
+      setIsRevoking(false);
     }
   };
 
@@ -81,40 +99,37 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
   }
 
   return (
-    <Card className="mt-8 overflow-hidden">
-      <CardHeader className="pb-4 border-b border-zinc-100">
-        <CardTitle className="text-base font-semibold text-zinc-900">Pending Invitations</CardTitle>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          {pending.length} pending {pending.length === 1 ? "invitation" : "invitations"} awaiting acceptance
-        </p>
-      </CardHeader>
-      
-      {error && (
-        <div className="p-4 border-b border-red-100 bg-red-50">
-          <Alert variant="destructive" className="border-0 bg-transparent p-0">
-            <AlertDescription className="text-xs text-red-700">{error}</AlertDescription>
-          </Alert>
-        </div>
-      )}
+    <>
+      <Card className="mt-8 overflow-hidden">
+        <CardHeader className="pb-4 border-b border-zinc-100">
+          <CardTitle className="text-base font-semibold text-zinc-900">Pending Invitations</CardTitle>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {pending.length} pending {pending.length === 1 ? "invitation" : "invitations"} awaiting acceptance
+          </p>
+        </CardHeader>
+        
+        {pageError && (
+          <div className="p-4 border-b border-red-100 bg-red-50">
+            <Alert variant="destructive" className="border-0 bg-transparent p-0">
+              <AlertDescription className="text-xs text-red-700">{pageError}</AlertDescription>
+            </Alert>
+          </div>
+        )}
 
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-zinc-50/80 border-b border-zinc-100 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-                <th className="px-5 py-2.5">Invited Email</th>
-                <th className="px-5 py-2.5">Invited By</th>
-                <th className="px-5 py-2.5">Status</th>
-                <th className="px-5 py-2.5">Expires</th>
-                {isOwner && <th className="px-5 py-2.5 text-right">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 text-sm">
-              {pending.map((inv) => {
-                const isItemRevoking = loadingId === inv.id;
-                const isAnyRevoking = loadingId !== null;
-
-                return (
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-zinc-50/80 border-b border-zinc-100 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+                  <th className="px-5 py-2.5">Invited Email</th>
+                  <th className="px-5 py-2.5">Invited By</th>
+                  <th className="px-5 py-2.5">Status</th>
+                  <th className="px-5 py-2.5">Expires</th>
+                  {isOwner && <th className="px-5 py-2.5 text-right">Actions</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 text-sm">
+                {pending.map((inv) => (
                   <tr key={inv.id} className="hover:bg-zinc-50/60 transition-colors">
                     <td className="px-5 py-3 font-medium text-xs text-zinc-900">
                       {inv.email}
@@ -140,31 +155,47 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRevoke(inv.id, inv.email)}
-                          disabled={isAnyRevoking}
-                          className="h-7 px-2 text-xs text-zinc-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          onClick={() => handleOpenRevokeDialog(inv.id, inv.email)}
+                          className="h-7 px-2 text-xs text-zinc-500 hover:text-red-600 hover:bg-red-50"
                         >
-                          {isItemRevoking ? (
-                            <>
-                              <Spinner size="sm" className="mr-1.5 text-red-600" />
-                              <span>Revoking...</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="w-3.5 h-3.5 mr-1" />
-                              <span>Revoke</span>
-                            </>
-                          )}
+                          <XCircle className="w-3.5 h-3.5 mr-1" />
+                          <span>Revoke</span>
                         </Button>
                       </td>
                     )}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={confirmInvitation !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmInvitation(null);
+            setDialogError(null);
+          }
+        }}
+        title="Revoke invitation?"
+        description={
+          confirmInvitation
+            ? `Revoke the pending invitation sent to ${confirmInvitation.email}? The invitation link will no longer work, and they will not be able to join this workspace using this invitation.`
+            : ""
+        }
+        confirmLabel="Revoke invitation"
+        loadingLabel="Revoking invitation..."
+        variant="destructive"
+        isLoading={isRevoking}
+        error={dialogError}
+        onConfirm={handleConfirmRevoke}
+        onCancel={() => {
+          setConfirmInvitation(null);
+          setDialogError(null);
+        }}
+      />
+    </>
   );
 }

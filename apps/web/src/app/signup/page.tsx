@@ -3,13 +3,22 @@ import { redirect } from "next/navigation";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { getServerSession } from "@/lib/auth";
 
-export default async function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const returnTo = typeof resolvedSearchParams.returnTo === "string" ? resolvedSearchParams.returnTo : undefined;
+
   const session = await getServerSession();
   if (session) {
-    redirect("/organizations");
+    const target = returnTo && returnTo.startsWith("/") ? returnTo : "/organizations";
+    redirect(target);
   }
 
   const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const loginHref = returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : "/login";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans text-zinc-900">
@@ -40,7 +49,7 @@ export default async function SignupPage() {
 
         <p className="mt-6 text-center text-sm text-zinc-600">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link href={loginHref} className="font-medium text-blue-600 hover:text-blue-500">
             Sign in
           </Link>
         </p>

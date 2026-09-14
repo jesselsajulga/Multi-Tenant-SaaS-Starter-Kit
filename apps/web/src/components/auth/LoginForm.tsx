@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,6 +14,8 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +46,8 @@ export function LoginForm() {
       setLoading(false);
 
       setTimeout(() => {
-        router.push("/organizations");
+        const target = returnTo && returnTo.startsWith("/") ? returnTo : "/organizations";
+        router.push(target);
         router.refresh();
       }, 1500);
     } catch (err: any) {

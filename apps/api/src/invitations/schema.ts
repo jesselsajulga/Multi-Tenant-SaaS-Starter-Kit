@@ -7,3 +7,7 @@ export const createInvitationSchema = z.object({
 export const processInvitationSchema = z.object({
   token: z.string().min(1),
 });
+
+export const verifyInvitationQuerySchema = z.object({
+  token: z.string().trim().min(1, "Token is required"),
+});

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
+import { Check } from "lucide-react";
 
 interface InviteMemberModalProps {
   organizationId: string;
@@ -56,12 +57,18 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const res = await fetch(`${API_URL}/organizations/${organizationId}/invitations`, {
+
+      // Match standard minimum loading duration from LoginForm/SignUpForm so the spinner is clearly visible
+      const minDelay = new Promise((resolve) => setTimeout(resolve, 2500));
+
+      const fetchPromise = fetch(`${API_URL}/organizations/${organizationId}/invitations`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
+
+      const [res] = await Promise.all([fetchPromise, minDelay]);
 
       let data: any = {};
       try {
@@ -76,12 +83,12 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
 
       setSuccess(true);
       router.refresh();
-      
-      // Auto close after 2s and reset form
+
+      // Auto close after ~1s confirmation window and reset form
       setTimeout(() => {
         setIsOpen(false);
         resetForm();
-      }, 2000);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "Failed to invite member");
     } finally {
@@ -104,11 +111,6 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          {success && (
-            <Alert variant="success">
-              <AlertDescription>Invitation sent successfully!</AlertDescription>
             </Alert>
           )}
 
@@ -157,10 +159,13 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
             <Button
               type="submit"
               disabled={loading || success}
-              className={success ? "!bg-green-600 hover:!bg-green-600 !text-white" : ""}
+              className={success ? "!bg-green-600 hover:!bg-green-600 !text-white !opacity-100" : ""}
             >
               {success ? (
-                "Invitation sent!"
+                <>
+                  <Check className="w-4 h-4 mr-1.5" />
+                  <span>Invitation sent!</span>
+                </>
               ) : loading ? (
                 <>
                   <Spinner size="sm" className="mr-2 text-zinc-50" />
