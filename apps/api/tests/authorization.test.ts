@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { buildApp } from '../src/app';
 import { FastifyInstance } from 'fastify';
@@ -68,6 +68,40 @@ describe('Authorization & RBAC', () => {
         
       expect(response.status).toBe(401);
       expect(response.body.error).toBe('Unauthorized');
+    });
+  });
+
+  describe('Member Removal & Transactional Email Notification', () => {
+    it('should allow OWNER to remove a member and dispatch transactional email informing access revocation', async () => {
+      const logSpy = vi.spyOn(app.log, 'info');
+
+      const response = await request(app.server)
+        .delete(`/organizations/${orgId}/members/${memberId}`)
+        .set('Cookie', ownerCookies);
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('Member removed successfully');
+
+      // Verify simulated transactional email was dispatched
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'Simulated Email: Workspace Access Revoked',
+          to: expect.stringContaining('@example.com'),
+          workspaceName: expect.stringContaining('RBAC Test Org'),
+          message: expect.stringMatching(/Your access to RBAC Test Org.* has been revoked\./)
+        })
+      );
+
+      // Verify membership was removed in database
+      const membership = await prisma.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: orgId,
+            userId: memberId
+          }
+        }
+      });
+      expect(membership).toBeNull();
     });
   });
 });

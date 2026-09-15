@@ -19,7 +19,7 @@ export async function invitationRoutes(app: FastifyInstance) {
     // Require OWNER role to invite
     const access = await authorizeOrganizationAccess(organizationId, auth.user.id, "OWNER");
     if (access.error || !access.tenantPrisma) {
-      return reply.status(access.status).send({ error: access.error });
+      return reply.status(access.status).send({ error: access.error, code: access.code });
     }
 
     const result = createInvitationSchema.safeParse(request.body);
@@ -132,7 +132,7 @@ export async function invitationRoutes(app: FastifyInstance) {
     // Both MEMBER and OWNER can view invitations
     const access = await authorizeOrganizationAccess(organizationId, auth.user.id);
     if (access.error || !access.tenantPrisma) {
-      return reply.status(access.status).send({ error: access.error });
+      return reply.status(access.status).send({ error: access.error, code: access.code });
     }
 
     const invitations = await access.tenantPrisma.organizationInvitation.findMany({

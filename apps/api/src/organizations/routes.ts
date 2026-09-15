@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { authenticateRequest } from "../auth/authenticate";
+import { authorizeOrganizationAccess } from "../auth/authorize";
 import { createOrganizationSchema, updateOrganizationSchema } from "./schema";
 
 export async function organizationRoutes(app: FastifyInstance) {
@@ -78,25 +79,21 @@ export async function organizationRoutes(app: FastifyInstance) {
 
     const { id } = request.params as { id: string };
 
-    const membership = await prisma.organizationMember.findUnique({
-      where: {
-        organizationId_userId: {
-          organizationId: id,
-          userId: auth.user.id,
-        },
-      },
-      include: {
-        organization: true,
-      },
-    });
-
-    if (!membership) {
-      return reply.status(403).send({ error: "Forbidden" });
+    const access = await authorizeOrganizationAccess(id, auth.user.id);
+    if (access.error || !access.membership) {
+      return reply.status(access.status || 403).send({ 
+        error: access.error || "Forbidden",
+        code: access.code || "PERMISSION_DENIED" 
+      });
     }
 
+    const org = await prisma.organization.findUnique({
+      where: { id },
+    });
+
     return reply.status(200).send({ 
-      organization: membership.organization,
-      role: membership.role 
+      organization: org,
+      role: access.membership.role 
     });
   });
 

@@ -36,6 +36,7 @@ export function TeamList({ organizationId, organizationName = "this workspace", 
   // State for destructive removal confirmation dialog
   const [confirmMember, setConfirmMember] = useState<{ userId: string; email: string } | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isRemoveSuccess, setIsRemoveSuccess] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
 
   const filteredMembers = useMemo(() => {
@@ -48,11 +49,12 @@ export function TeamList({ organizationId, organizationName = "this workspace", 
 
   const handleOpenRemoveDialog = (userId: string, email: string) => {
     setDialogError(null);
+    setIsRemoveSuccess(false);
     setConfirmMember({ userId, email });
   };
 
   const handleConfirmRemove = async () => {
-    if (!confirmMember || isRemoving) return;
+    if (!confirmMember || isRemoving || isRemoveSuccess) return;
 
     setIsRemoving(true);
     setDialogError(null);
@@ -81,9 +83,14 @@ export function TeamList({ organizationId, organizationName = "this workspace", 
         throw new Error(errorMessage);
       }
 
-      // Success: close modal and refresh team data
-      setConfirmMember(null);
-      router.refresh();
+      // Explicit success feedback within modal before auto-close
+      setIsRemoveSuccess(true);
+
+      setTimeout(() => {
+        router.refresh();
+        setConfirmMember(null);
+        setIsRemoveSuccess(false);
+      }, 2000);
     } catch (err: any) {
       // Keep modal open and display actionable error for retry
       setDialogError(err.message || "Unable to remove this member. Please try again.");
@@ -212,6 +219,7 @@ export function TeamList({ organizationId, organizationName = "this workspace", 
         onOpenChange={(open) => {
           if (!open) {
             setConfirmMember(null);
+            setIsRemoveSuccess(false);
             setDialogError(null);
           }
         }}
@@ -223,12 +231,15 @@ export function TeamList({ organizationId, organizationName = "this workspace", 
         }
         confirmLabel="Remove member"
         loadingLabel="Removing member..."
+        successLabel="Member removed!"
         variant="destructive"
         isLoading={isRemoving}
+        isSuccess={isRemoveSuccess}
         error={dialogError}
         onConfirm={handleConfirmRemove}
         onCancel={() => {
           setConfirmMember(null);
+          setIsRemoveSuccess(false);
           setDialogError(null);
         }}
       />

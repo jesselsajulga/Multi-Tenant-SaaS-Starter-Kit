@@ -3,13 +3,33 @@ import { prisma, getTenantPrisma } from "../db";
 
 export type Role = "OWNER" | "MEMBER";
 
+export type AuthorizeSuccess = {
+  orgId: string;
+  membership: NonNullable<Awaited<ReturnType<typeof prisma.organizationMember.findUnique>>>;
+  tenantPrisma: ReturnType<typeof getTenantPrisma>;
+  error?: undefined;
+  code?: undefined;
+  status?: undefined;
+};
+
+export type AuthorizeFailure = {
+  error: string;
+  code?: string;
+  status: number;
+  orgId?: undefined;
+  membership?: undefined;
+  tenantPrisma?: undefined;
+};
+
+export type AuthorizeResult = AuthorizeSuccess | AuthorizeFailure;
+
 export async function authorizeOrganizationAccess(
   orgId: string | undefined | null,
   userId: string,
   requiredRole?: Role
-) {
+): Promise<AuthorizeResult> {
   if (!orgId) {
-    return { error: "Missing organization identifier", status: 400 };
+    return { error: "Missing organization identifier", code: "BAD_REQUEST", status: 400 };
   }
 
   const membership = await prisma.organizationMember.findUnique({
@@ -22,13 +42,31 @@ export async function authorizeOrganizationAccess(
   });
 
   if (!membership) {
-    return { error: "Forbidden", status: 403 };
+    // Check if the user previously had membership in this organization that was removed
+    const removalAudit = await prisma.auditLog.findFirst({
+      where: {
+        organizationId: orgId,
+        action: "MEMBER_REMOVED",
+        resourceId: userId,
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (removalAudit) {
+      return { 
+        error: "Workspace access revoked", 
+        code: "WORKSPACE_ACCESS_REVOKED", 
+        status: 403 
+      };
+    }
+
+    return { error: "Forbidden", code: "PERMISSION_DENIED", status: 403 };
   }
 
   if (requiredRole) {
     // OWNER can do everything a MEMBER can do, but MEMBER cannot do OWNER things
     if (requiredRole === "OWNER" && membership.role !== "OWNER") {
-      return { error: "Forbidden: Requires OWNER role", status: 403 };
+      return { error: "Forbidden: Requires OWNER role", code: "OWNER_REQUIRED", status: 403 };
     }
   }
 
@@ -39,10 +77,10 @@ export async function authorizeRequest(
   request: FastifyRequest,
   userId: string,
   requiredRole?: Role
-) {
+): Promise<AuthorizeResult> {
   const orgId = request.headers["x-organization-id"] as string;
   if (!orgId) {
-    return { error: "Missing x-organization-id header", status: 400 };
+    return { error: "Missing x-organization-id header", code: "BAD_REQUEST", status: 400 };
   }
   return authorizeOrganizationAccess(orgId, userId, requiredRole);
 }

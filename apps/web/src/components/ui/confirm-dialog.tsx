@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Check } from "lucide-react";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -21,8 +21,10 @@ export interface ConfirmDialogProps {
   description: string;
   confirmLabel: string;
   loadingLabel?: string;
+  successLabel?: string;
   variant?: "destructive" | "default";
   isLoading?: boolean;
+  isSuccess?: boolean;
   error?: string | null;
   onConfirm: () => void | Promise<void>;
   onCancel?: () => void;
@@ -35,15 +37,17 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   loadingLabel,
+  successLabel = "Success!",
   variant = "destructive",
   isLoading = false,
+  isSuccess = false,
   error = null,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   const handleOpenChange = (nextOpen: boolean) => {
-    // Prevent closing when in loading/flight state
-    if (isLoading) return;
+    // Prevent closing when in loading/flight or success state
+    if (isLoading || isSuccess) return;
     if (!nextOpen && onCancel) {
       onCancel();
     }
@@ -54,14 +58,14 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="sm:max-w-[425px]"
-        showCloseButton={!isLoading}
+        showCloseButton={!isLoading && !isSuccess}
         onPointerDownOutside={(e) => {
-          if (isLoading) {
+          if (isLoading || isSuccess) {
             e.preventDefault();
           }
         }}
         onEscapeKeyDown={(e) => {
-          if (isLoading) {
+          if (isLoading || isSuccess) {
             e.preventDefault();
           }
         }}
@@ -95,20 +99,25 @@ export function ConfirmDialog({
             variant="outline"
             size="sm"
             onClick={() => handleOpenChange(false)}
-            disabled={isLoading}
+            disabled={isLoading || isSuccess}
             className="text-xs h-8"
           >
             Cancel
           </Button>
           <Button
             type="button"
-            variant={variant}
+            variant={isSuccess ? "success" : variant}
             size="sm"
             onClick={() => onConfirm()}
-            disabled={isLoading}
-            className="text-xs h-8"
+            disabled={isLoading || isSuccess}
+            className={`text-xs h-8 ${isSuccess ? "!bg-green-600 hover:!bg-green-600 !text-white !opacity-100" : ""}`}
           >
-            {isLoading ? (
+            {isSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5 mr-1.5" />
+                <span>{successLabel}</span>
+              </>
+            ) : isLoading ? (
               <>
                 <Spinner size="sm" className="mr-1.5" />
                 <span>{loadingLabel || "Processing..."}</span>

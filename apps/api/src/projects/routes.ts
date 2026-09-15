@@ -4,26 +4,10 @@ import { createProjectSchema, updateProjectSchema } from "./schema";
 import { prisma, getTenantPrisma } from "../db";
 import { createAuditLog } from "../audit/logger";
 
+import { authorizeRequest } from "../auth/authorize";
+
 async function verifyTenantAccess(request: FastifyRequest, userId: string) {
-  const orgId = request.headers["x-organization-id"] as string;
-  if (!orgId) {
-    return { error: "Missing x-organization-id header", status: 400, orgId: undefined, tenantPrisma: undefined };
-  }
-
-  const membership = await prisma.organizationMember.findUnique({
-    where: {
-      organizationId_userId: {
-        organizationId: orgId,
-        userId: userId,
-      }
-    }
-  });
-
-  if (!membership) {
-    return { error: "Forbidden", status: 403, orgId: undefined, tenantPrisma: undefined };
-  }
-
-  return { error: undefined, status: undefined, orgId, tenantPrisma: getTenantPrisma(orgId) };
+  return authorizeRequest(request, userId);
 }
 
 export async function projectRoutes(app: FastifyInstance) {
@@ -36,24 +20,27 @@ export async function projectRoutes(app: FastifyInstance) {
 
     const access = await verifyTenantAccess(request, auth.user.id);
     if (access.error || !access.tenantPrisma || !access.orgId) {
-      return reply.status(access.status || 400).send({ error: access.error });
+      return reply.status(access.status || 400).send({ error: access.error, code: access.code });
     }
+
+    const orgId = access.orgId;
+    const tenantPrisma = access.tenantPrisma;
 
     const result = createProjectSchema.safeParse(request.body);
     if (!result.success) {
       return reply.status(400).send({ error: "Invalid project data" });
     }
 
-    const project = await access.tenantPrisma.$transaction(async (tx) => {
+    const project = await tenantPrisma.$transaction(async (tx) => {
       const p = await tx.project.create({
         data: {
           name: result.data.name,
-          organizationId: access.orgId,
+          organizationId: orgId,
         },
       });
 
       await createAuditLog(tx, {
-        organizationId: access.orgId,
+        organizationId: orgId,
         actorId: auth.user.id,
         actorSnapshot: { email: auth.user.email },
         action: "PROJECT_CREATED",
@@ -77,7 +64,7 @@ export async function projectRoutes(app: FastifyInstance) {
 
     const access = await verifyTenantAccess(request, auth.user.id);
     if (access.error || !access.tenantPrisma) {
-      return reply.status(access.status || 400).send({ error: access.error });
+      return reply.status(access.status || 400).send({ error: access.error, code: access.code });
     }
 
     // RLS handles the filtering automatically
@@ -97,7 +84,7 @@ export async function projectRoutes(app: FastifyInstance) {
 
     const access = await verifyTenantAccess(request, auth.user.id);
     if (access.error || !access.tenantPrisma) {
-      return reply.status(access.status || 400).send({ error: access.error });
+      return reply.status(access.status || 400).send({ error: access.error, code: access.code });
     }
 
     const { id } = request.params as { id: string };
@@ -122,7 +109,7 @@ export async function projectRoutes(app: FastifyInstance) {
 
     const access = await verifyTenantAccess(request, auth.user.id);
     if (access.error || !access.tenantPrisma) {
-      return reply.status(access.status || 400).send({ error: access.error });
+      return reply.status(access.status || 400).send({ error: access.error, code: access.code });
     }
 
     const { id } = request.params as { id: string };
@@ -140,9 +127,26 @@ export async function projectRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid project data" });
     }
 
-    const updatedProject = await access.tenantPrisma.project.update({
-      where: { id },
-      data: { name: result.data.name },
+    const updatedProject = await access.tenantPrisma.$transaction(async (tx) => {
+      const p = await tx.project.update({
+        where: { id },
+        data: result.data,
+      });
+
+      // Record audit log for project update
+      await createAuditLog(tx, {
+        organizationId: access.orgId!,
+        actorId: auth.user.id,
+        actorSnapshot: { email: auth.user.email },
+        action: "PROJECT_UPDATED",
+        resourceType: "Project",
+        resourceId: id,
+        metadata: {
+          name: p.name,
+        },
+      });
+
+      return p;
     });
 
     return reply.status(200).send({ project: updatedProject });
@@ -157,7 +161,7 @@ export async function projectRoutes(app: FastifyInstance) {
 
     const access = await verifyTenantAccess(request, auth.user.id);
     if (access.error || !access.tenantPrisma) {
-      return reply.status(access.status || 400).send({ error: access.error });
+      return reply.status(access.status || 400).send({ error: access.error, code: access.code });
     }
 
     const { id } = request.params as { id: string };

@@ -18,7 +18,7 @@ export async function featureFlagsRoutes(app: FastifyInstance) {
     const data = createFeatureFlagSchema.parse(req.body);
 
     const access = await authorizeOrganizationAccess(organizationId, auth.user.id, "OWNER");
-    if (access.error || !access.tenantPrisma) return reply.status(access.status || 400).send({ error: access.error });
+    if (access.error || !access.tenantPrisma) return reply.status(access.status || 400).send({ error: access.error, code: access.code });
 
     try {
       const flag = await access.tenantPrisma.featureFlag.create({

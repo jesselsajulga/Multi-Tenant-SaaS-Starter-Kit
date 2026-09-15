@@ -7,6 +7,8 @@ import { UserMenu } from "@/components/shell/UserMenu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { CreateWorkspaceModal } from "@/components/shell/CreateWorkspaceModal";
 
+import { RevocationBanner } from "@/components/notifications/RevocationBanner";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 async function getPendingInvitationsCount(sessionCookie: string): Promise<number> {
@@ -25,15 +27,27 @@ async function getPendingInvitationsCount(sessionCookie: string): Promise<number
   }
 }
 
-export default async function OrganizationsPage() {
+interface OrganizationsPageProps {
+  searchParams: Promise<{
+    revoked?: string;
+    workspace?: string;
+  }>;
+}
+
+export default async function OrganizationsPage({ searchParams }: OrganizationsPageProps) {
   const session = await requireSession();
   const organizations = await getUserOrganizations();
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value || "";
   const pendingInvitationsCount = await getPendingInvitationsCount(sessionCookie);
 
-  // If exactly 1 workspace and no pending invitations to review, automatically open it
-  if (organizations.length === 1 && pendingInvitationsCount === 0) {
+  const params = await searchParams;
+  const isRevoked = params?.revoked === "1";
+  const revokedWorkspaceName = params?.workspace;
+
+  // If exactly 1 workspace and no pending invitations to review, automatically open it,
+  // UNLESS the user was just revoked / ejected from another workspace.
+  if (!isRevoked && organizations.length === 1 && pendingInvitationsCount === 0) {
     redirect(`/organizations/${organizations[0].organization.id}/dashboard`);
   }
 
@@ -47,6 +61,10 @@ export default async function OrganizationsPage() {
         </div>
       </header>
       <main className="flex-1 flex flex-col items-center justify-center p-8">
+        <RevocationBanner 
+          isRevoked={isRevoked} 
+          initialWorkspaceName={revokedWorkspaceName} 
+        />
         {pendingInvitationsCount > 0 && (
           <div className="max-w-2xl w-full mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">

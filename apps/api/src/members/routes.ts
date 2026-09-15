@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../db";
 import { authenticateRequest } from "../auth/authenticate";
 import { authorizeOrganizationAccess } from "../auth/authorize";
+import { createAuditLog } from "../audit/logger";
 import { addMemberSchema } from "./schema";
 
 export async function memberRoutes(app: FastifyInstance) {
@@ -16,7 +17,7 @@ export async function memberRoutes(app: FastifyInstance) {
     const access = await authorizeOrganizationAccess(organizationId, auth.user.id);
     
     if (access.error) {
-      return reply.status(access.status).send({ error: access.error });
+      return reply.status(access.status).send({ error: access.error, code: access.code });
     }
 
     const members = await prisma.organizationMember.findMany({
@@ -108,6 +109,18 @@ export async function memberRoutes(app: FastifyInstance) {
           organizationId,
           userId: targetUserId
         }
+      },
+      include: {
+        user: {
+          select: {
+            email: true
+          }
+        },
+        organization: {
+          select: {
+            name: true
+          }
+        }
       }
     });
 
@@ -136,6 +149,29 @@ export async function memberRoutes(app: FastifyInstance) {
           userId: targetUserId
         }
       }
+    });
+
+    // Record audit log for member removal
+    await createAuditLog(prisma, {
+      organizationId,
+      actorId: auth.user.id,
+      actorSnapshot: { email: auth.user.email },
+      action: "MEMBER_REMOVED",
+      resourceType: "OrganizationMember",
+      resourceId: targetUserId,
+      metadata: {
+        removedMemberEmail: targetMembership.user.email,
+        removedMemberRole: targetMembership.role,
+        organizationName: targetMembership.organization.name,
+      }
+    });
+
+    // Send transactional email notification informing user that their access was revoked
+    app.log.info({
+      msg: "Simulated Email: Workspace Access Revoked",
+      to: targetMembership.user.email,
+      workspaceName: targetMembership.organization.name,
+      message: `Your access to ${targetMembership.organization.name} has been revoked.`
     });
 
     return reply.status(200).send({ message: "Member removed successfully" });

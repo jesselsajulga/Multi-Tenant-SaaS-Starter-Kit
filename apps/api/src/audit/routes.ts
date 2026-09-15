@@ -15,7 +15,10 @@ export async function auditRoutes(app: FastifyInstance) {
     // Explicitly require OWNER role for audit access
     const access = await authorizeOrganizationAccess(organizationId, auth.user.id, "OWNER");
     if (access.error || !access.tenantPrisma) {
-      return reply.status(access.status || 403).send({ error: access.error || "Forbidden" });
+      return reply.status(access.status || 403).send({ 
+        error: access.error || "Forbidden",
+        code: access.code || "PERMISSION_DENIED" 
+      });
     }
 
     const queryParse = getAuditLogsSchema.safeParse(request.query);

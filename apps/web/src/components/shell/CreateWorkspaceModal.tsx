@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,30 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const router = useRouter();
+
+  const handleOpenChange = (open: boolean) => {
+    // Prevent closing modal while in loading or success dwell state
+    if (!open && (loading || isSuccess)) return;
+    setIsOpen(open);
+    if (!open) {
+      setError(null);
+      setName("");
+      setIsSuccess(false);
+    }
+  };
+
+  const MIN_LOADING_TIME = 2500;
+  const SUCCESS_DWELL_TIME = 1200;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || loading || isSuccess) return;
 
     setLoading(true);
     setError(null);
+    const startedAt = Date.now();
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -46,8 +62,23 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
       const data = await res.json();
       const newOrganizationId = data.organization.id;
 
+      // Enforce the full 2.5-second minimum loading duration so the spinner sequence is clearly visible
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+
+      // Transition to explicit success state
+      setLoading(false);
+      setIsSuccess(true);
+
+      // Enforce 1200ms success dwell time so user cognitively processes "Created!" before redirect
+      await new Promise((resolve) => setTimeout(resolve, SUCCESS_DWELL_TIME));
+
       setIsOpen(false);
       setName("");
+      setIsSuccess(false);
       
       if (onSuccess) {
         onSuccess();
@@ -56,8 +87,8 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
       router.push(`/organizations/${newOrganizationId}/dashboard`);
     } catch (err: any) {
       setError(err.message);
-    } finally {
       setLoading(false);
+      setIsSuccess(false);
     }
   };
 
@@ -85,7 +116,7 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
         defaultButton
       )}
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Create Workspace</DialogTitle>
@@ -107,6 +138,7 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
                 id="name"
                 type="text"
                 required
+                disabled={loading || isSuccess}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Acme Corp"
@@ -117,16 +149,30 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsOpen(false)}
+                disabled={loading || isSuccess}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={loading || !name.trim()}
+                variant={isSuccess ? "success" : "default"}
+                disabled={loading || isSuccess || !name.trim()}
+                className={isSuccess ? "!bg-green-600 hover:!bg-green-600 !text-white !opacity-100 transition-colors" : ""}
               >
-                {loading && <Spinner className="w-4 h-4 mr-2" />}
-                Create
+                {isSuccess ? (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    <span>Created!</span>
+                  </>
+                ) : loading ? (
+                  <>
+                    <Spinner className="w-4 h-4 mr-2" />
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  "Create"
+                )}
               </Button>
             </div>
           </form>

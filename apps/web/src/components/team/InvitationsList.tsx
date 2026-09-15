@@ -34,15 +34,17 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
   // State for destructive revocation confirmation dialog
   const [confirmInvitation, setConfirmInvitation] = useState<{ id: string; email: string } | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [isRevokeSuccess, setIsRevokeSuccess] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
 
   const handleOpenRevokeDialog = (id: string, email: string) => {
     setDialogError(null);
+    setIsRevokeSuccess(false);
     setConfirmInvitation({ id, email });
   };
 
   const handleConfirmRevoke = async () => {
-    if (!confirmInvitation || isRevoking) return;
+    if (!confirmInvitation || isRevoking || isRevokeSuccess) return;
 
     setIsRevoking(true);
     setDialogError(null);
@@ -71,9 +73,14 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
         throw new Error(errorMessage);
       }
 
-      // Success: close modal and refresh team/invitations data
-      setConfirmInvitation(null);
-      router.refresh();
+      // Explicit success feedback within modal before auto-close
+      setIsRevokeSuccess(true);
+
+      setTimeout(() => {
+        router.refresh();
+        setConfirmInvitation(null);
+        setIsRevokeSuccess(false);
+      }, 2000);
     } catch (err: any) {
       // Keep modal open and display actionable error for retry
       setDialogError(err.message || "Unable to revoke this invitation. Please try again.");
@@ -176,6 +183,7 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
         onOpenChange={(open) => {
           if (!open) {
             setConfirmInvitation(null);
+            setIsRevokeSuccess(false);
             setDialogError(null);
           }
         }}
@@ -187,12 +195,15 @@ export function InvitationsList({ organizationId, invitations, isOwner }: Invita
         }
         confirmLabel="Revoke invitation"
         loadingLabel="Revoking invitation..."
+        successLabel="Invitation revoked!"
         variant="destructive"
         isLoading={isRevoking}
+        isSuccess={isRevokeSuccess}
         error={dialogError}
         onConfirm={handleConfirmRevoke}
         onCancel={() => {
           setConfirmInvitation(null);
+          setIsRevokeSuccess(false);
           setDialogError(null);
         }}
       />

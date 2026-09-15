@@ -72,11 +72,18 @@ export async function requireSession(): Promise<SessionData> {
  * Retrieves the context (organization details and user role) for a specific organization.
  */
 export async function getOrganizationContext(organizationId: string): Promise<OrganizationContext | null> {
+  const result = await getOrganizationContextWithStatus(organizationId);
+  return result.context;
+}
+
+export async function getOrganizationContextWithStatus(
+  organizationId: string
+): Promise<{ context: OrganizationContext | null; revoked?: boolean }> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session");
 
   if (!sessionCookie) {
-    return null;
+    return { context: null };
   }
 
   try {
@@ -88,13 +95,23 @@ export async function getOrganizationContext(organizationId: string): Promise<Or
     });
 
     if (!res.ok) {
-      return null;
+      if (res.status === 403) {
+        try {
+          const errData = await res.json();
+          if (errData.code === "WORKSPACE_ACCESS_REVOKED") {
+            return { context: null, revoked: true };
+          }
+        } catch {
+          // ignore json parse error
+        }
+      }
+      return { context: null };
     }
 
     const data = await res.json();
-    return data as OrganizationContext;
+    return { context: data as OrganizationContext };
   } catch (error) {
-    return null;
+    return { context: null };
   }
 }
 
@@ -103,11 +120,14 @@ export async function getOrganizationContext(organizationId: string): Promise<Or
  * Redirects to the organizations list if access is denied.
  */
 export async function requireOrganizationAccess(organizationId: string): Promise<OrganizationContext> {
-  const context = await getOrganizationContext(organizationId);
-  if (!context) {
+  const result = await getOrganizationContextWithStatus(organizationId);
+  if (!result.context) {
+    if (result.revoked) {
+      redirect("/organizations?revoked=1");
+    }
     redirect("/organizations"); // Unauthorized or forbidden -> kick them to the picker
   }
-  return context;
+  return result.context;
 }
 
 /**

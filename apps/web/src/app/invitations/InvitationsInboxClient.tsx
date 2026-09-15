@@ -9,6 +9,8 @@ import {
   type ReceivedInvitation,
 } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { WelcomeWorkspaceModal } from "@/components/team/WelcomeWorkspaceModal";
 
 export function InvitationsInboxClient({
   initialInvitations,
@@ -17,32 +19,64 @@ export function InvitationsInboxClient({
 }) {
   const router = useRouter();
   const [invitations, setInvitations] = useState<ReceivedInvitation[]>(initialInvitations);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [activeAction, setActiveAction] = useState<{ id: string; type: "accept" | "decline" } | null>(null);
+  const [successAction, setSuccessAction] = useState<{ id: string; type: "accept" | "decline" } | null>(null);
+  const [welcomeOrg, setWelcomeOrg] = useState<{ name: string; id: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleAccept = async (invitation: ReceivedInvitation) => {
-    setLoadingId(invitation.id);
+    if (activeAction || successAction || welcomeOrg) return;
+    setActiveAction({ id: invitation.id, type: "accept" });
     setError(null);
+
     try {
-      await acceptReceivedInvitation(invitation.id);
+      const minDelay = new Promise((resolve) => setTimeout(resolve, 2500));
+      const acceptPromise = acceptReceivedInvitation(invitation.id);
+
+      await Promise.all([acceptPromise, minDelay]);
+
+      // Remove from list and open celebratory Welcome modal
+      setActiveAction(null);
       setInvitations((prev) => prev.filter((i) => i.id !== invitation.id));
-      router.push(`/organizations/${invitation.organization.id}/dashboard`);
+      setWelcomeOrg({ name: invitation.organization.name, id: invitation.organization.id });
     } catch (err: any) {
-      setError(err.message);
-      setLoadingId(null);
+      setError(err.message || "Failed to accept invitation");
+      setActiveAction(null);
     }
   };
 
+  const handleWelcomeConfirm = () => {
+    if (!welcomeOrg) return;
+    const orgId = welcomeOrg.id;
+    setWelcomeOrg(null);
+    router.push(`/organizations/${orgId}/dashboard`);
+    router.refresh();
+  };
+
   const handleDecline = async (invitationId: string) => {
-    setLoadingId(invitationId);
+    if (activeAction || successAction) return;
+    setActiveAction({ id: invitationId, type: "decline" });
     setError(null);
+
     try {
-      await declineReceivedInvitation(invitationId);
-      setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+      const minDelay = new Promise((resolve) => setTimeout(resolve, 2500));
+      const declinePromise = declineReceivedInvitation(invitationId);
+
+      await Promise.all([declinePromise, minDelay]);
+
+      // Transition to explicit success state
+      setSuccessAction({ id: invitationId, type: "decline" });
+      setActiveAction(null);
+
+      // Keep confirmation visible for 2 seconds before removing from list
+      setTimeout(() => {
+        setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+        setSuccessAction(null);
+        router.refresh();
+      }, 2000);
     } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoadingId(null);
+      setError(err.message || "Failed to decline invitation");
+      setActiveAction(null);
     }
   };
 
@@ -68,7 +102,12 @@ export function InvitationsInboxClient({
       ) : (
         <div className="grid gap-4">
           {invitations.map((invite) => {
-            const isLoading = loadingId === invite.id;
+            const isAccepting = activeAction?.id === invite.id && activeAction?.type === "accept";
+            const isDeclining = activeAction?.id === invite.id && activeAction?.type === "decline";
+            const isAcceptSuccess = successAction?.id === invite.id && successAction?.type === "accept";
+            const isDeclineSuccess = successAction?.id === invite.id && successAction?.type === "decline";
+            const isRowBusy = activeAction !== null || successAction !== null || welcomeOrg !== null;
+
             const formattedExpiry = new Date(invite.expiresAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -107,29 +146,74 @@ export function InvitationsInboxClient({
 
                 <div className="flex items-center gap-2 pt-2 sm:pt-0">
                   <Button
-                    variant="outline"
+                    variant={isDeclineSuccess ? "success" : "outline"}
                     size="sm"
-                    disabled={isLoading}
+                    disabled={isRowBusy}
                     onClick={() => handleDecline(invite.id)}
-                    className="text-zinc-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                    className={
+                      isDeclineSuccess
+                        ? "!bg-green-600 hover:!bg-green-600 !text-white !opacity-100"
+                        : "text-zinc-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                    }
                   >
-                    <X className="w-4 h-4 mr-1.5" />
-                    Decline
+                    {isDeclineSuccess ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1.5" />
+                        <span>Invitation declined</span>
+                      </>
+                    ) : isDeclining ? (
+                      <>
+                        <Spinner size="sm" className="mr-1.5 text-zinc-600" />
+                        <span>Declining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-4 h-4 mr-1.5" />
+                        <span>Decline</span>
+                      </>
+                    )}
                   </Button>
                   <Button
                     size="sm"
-                    disabled={isLoading}
+                    variant={isAcceptSuccess ? "success" : "default"}
+                    disabled={isRowBusy}
                     onClick={() => handleAccept(invite)}
-                    className="bg-zinc-900 text-white hover:bg-zinc-800"
+                    className={
+                      isAcceptSuccess
+                        ? "!bg-green-600 hover:!bg-green-600 !text-white !opacity-100"
+                        : "bg-zinc-900 text-white hover:bg-zinc-800"
+                    }
                   >
-                    <Check className="w-4 h-4 mr-1.5" />
-                    {isLoading ? "Joining..." : "Accept Invitation"}
+                    {isAcceptSuccess ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1.5" />
+                        <span>Invitation accepted!</span>
+                      </>
+                    ) : isAccepting ? (
+                      <>
+                        <Spinner size="sm" className="mr-1.5 text-zinc-50" />
+                        <span>Accepting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-1.5" />
+                        <span>Accept Invitation</span>
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {welcomeOrg && (
+        <WelcomeWorkspaceModal
+          open={welcomeOrg !== null}
+          organizationName={welcomeOrg.name}
+          onConfirm={handleWelcomeConfirm}
+        />
       )}
     </div>
   );

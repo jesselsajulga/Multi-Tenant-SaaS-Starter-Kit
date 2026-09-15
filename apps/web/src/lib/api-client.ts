@@ -14,9 +14,25 @@ export async function apiClient(path: string, options?: RequestInit) {
   if (!response.ok) {
     try {
       const errorData = await response.json();
-      return { error: errorData.error || "An error occurred" };
+      if (
+        response.status === 403 &&
+        errorData.code === "WORKSPACE_ACCESS_REVOKED" &&
+        typeof window !== "undefined"
+      ) {
+        // Dynamically extract organizationId from path if applicable (e.g., /organizations/:id/...)
+        const orgMatch = path.match(/\/organizations\/([^/]+)/);
+        const organizationId = orgMatch ? orgMatch[1] : undefined;
+        // Import dynamically or execute ejection
+        const { handleWorkspaceAccessRevoked } = await import("./workspace-ejection");
+        handleWorkspaceAccessRevoked({ organizationId });
+      }
+      return { 
+        error: errorData.error || "An error occurred", 
+        code: errorData.code, 
+        status: response.status 
+      };
     } catch {
-      return { error: `HTTP error! status: ${response.status}` };
+      return { error: `HTTP error! status: ${response.status}`, status: response.status };
     }
   }
 
