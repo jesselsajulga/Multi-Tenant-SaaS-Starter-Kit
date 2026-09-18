@@ -172,7 +172,7 @@ export async function organizationRoutes(app: FastifyInstance) {
       const activeStatuses = ["active", "trialing", "past_due", "unpaid"];
       if (!org.subscription.status || activeStatuses.includes(org.subscription.status)) {
         try {
-          const { stripe } = await import("../stripe/client");
+          const { stripe } = await import("../stripe/client.js");
           await stripe.subscriptions.cancel(org.subscription.stripeSubscriptionId);
         } catch (stripeErr: any) {
           // Allow deletion if subscription was already deleted or not found in Stripe
