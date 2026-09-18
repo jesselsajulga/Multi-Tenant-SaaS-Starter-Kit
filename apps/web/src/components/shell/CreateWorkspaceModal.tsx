@@ -79,7 +79,7 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
       setIsOpen(false);
       setName("");
       setIsSuccess(false);
-      
+
       if (onSuccess) {
         onSuccess();
       }
@@ -141,7 +141,7 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
                 disabled={loading || isSuccess}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Acme Corp"
+                placeholder="e.g. Computer Engineer"
               />
             </div>
 
@@ -156,9 +156,13 @@ export function CreateWorkspaceModal({ buttonClassName, buttonContent, onSuccess
               </Button>
               <Button
                 type="submit"
-                variant={isSuccess ? "success" : "default"}
+                variant={isSuccess ? "outline" : "default"}
                 disabled={loading || isSuccess || !name.trim()}
-                className={isSuccess ? "!bg-green-600 hover:!bg-green-600 !text-white !opacity-100 transition-colors" : ""}
+                className={
+                  isSuccess
+                    ? "!bg-transparent !border-2 !border-green-600 !text-green-600 hover:!bg-transparent !opacity-100 transition-colors cursor-default"
+                    : ""
+                }
               >
                 {isSuccess ? (
                   <>

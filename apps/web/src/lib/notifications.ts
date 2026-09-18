@@ -8,11 +8,22 @@ export interface NotificationItem {
   invitationId: string | null;
   readAt: string | null;
   createdAt: string;
+  invitation?: {
+    id: string;
+    status: string;
+    expiresAt: string;
+    role: string;
+    organization: {
+      id: string;
+      name: string;
+    };
+  } | null;
 }
 
 export interface NotificationsResponse {
   notifications: NotificationItem[];
   unreadCount: number;
+  nextCursor?: string | null;
 }
 
 export interface ReceivedInvitation {
@@ -34,8 +45,16 @@ export interface ReceivedInvitationsResponse {
   invitations: ReceivedInvitation[];
 }
 
-export async function getNotifications(): Promise<NotificationsResponse> {
-  const res = await fetch(`${API_BASE_URL}/notifications`, {
+export async function getNotifications(params?: {
+  cursor?: string;
+  limit?: number;
+}): Promise<NotificationsResponse> {
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit) query.set("limit", params.limit.toString());
+
+  const url = `${API_BASE_URL}/notifications${query.toString() ? `?${query.toString()}` : ""}`;
+  const res = await fetch(url, {
     method: "GET",
     credentials: "include",
     cache: "no-store",

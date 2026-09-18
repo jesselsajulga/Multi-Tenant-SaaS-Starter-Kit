@@ -54,6 +54,12 @@ export function ConfirmDialog({
     onOpenChange(nextOpen);
   };
 
+  // Success state mirrors the dialog's own variant: destructive actions stay red, others go green
+  const successClassName =
+    variant === "destructive"
+      ? "!bg-transparent !border-2 !border-red-600 !text-red-600 hover:!bg-transparent !opacity-100 cursor-default"
+      : "!bg-transparent !border-2 !border-green-600 !text-green-600 hover:!bg-transparent !opacity-100 cursor-default";
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
@@ -106,11 +112,11 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant={isSuccess ? "success" : variant}
+            variant={isSuccess ? "outline" : variant}
             size="sm"
             onClick={() => onConfirm()}
             disabled={isLoading || isSuccess}
-            className={`text-xs h-8 ${isSuccess ? "!bg-green-600 hover:!bg-green-600 !text-white !opacity-100" : ""}`}
+            className={`text-xs h-8 ${isSuccess ? successClassName : ""}`}
           >
             {isSuccess ? (
               <>

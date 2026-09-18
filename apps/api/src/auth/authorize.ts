@@ -42,14 +42,28 @@ export async function authorizeOrganizationAccess(
   });
 
   if (!membership) {
-    // Check if the user previously had membership in this organization that was removed
+    // Check if the organization itself still exists
+    const organizationExists = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { id: true },
+    });
+
+    if (!organizationExists) {
+      return {
+        error: "Workspace no longer exists",
+        code: "WORKSPACE_DELETED",
+        status: 404,
+      };
+    }
+
+    // Organization exists: check if the user previously had membership that was revoked
     const removalAudit = await prisma.auditLog.findFirst({
       where: {
         organizationId: orgId,
         action: "MEMBER_REMOVED",
         resourceId: userId,
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
     if (removalAudit) {

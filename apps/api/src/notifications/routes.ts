@@ -10,23 +10,52 @@ export async function notificationRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "Unauthorized" });
     }
 
+    const { cursor, limit = "20" } = request.query as { cursor?: string; limit?: string };
+    const take = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+
     const userPrisma = getUserPrisma(auth.user.id, auth.user.email);
 
-    const [notifications, unreadCount] = await Promise.all([
-      userPrisma.notification.findMany({
-        where: { userId: auth.user.id },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        select: {
-          id: true,
-          type: true,
-          title: true,
-          message: true,
-          invitationId: true,
-          readAt: true,
-          createdAt: true,
+    const whereClause: any = { userId: auth.user.id };
+
+    const findManyArgs: any = {
+      where: whereClause,
+      orderBy: [
+        { createdAt: "desc" },
+        { id: "desc" },
+      ],
+      take: take + 1, // fetch one extra to determine nextCursor
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        message: true,
+        invitationId: true,
+        readAt: true,
+        createdAt: true,
+        invitation: {
+          select: {
+            id: true,
+            status: true,
+            expiresAt: true,
+            role: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
         },
-      }),
+      },
+    };
+
+    if (cursor) {
+      findManyArgs.cursor = { id: cursor };
+      findManyArgs.skip = 1; // skip the cursor record itself
+    }
+
+    const [items, unreadCount] = await Promise.all([
+      userPrisma.notification.findMany(findManyArgs),
       userPrisma.notification.count({
         where: {
           userId: auth.user.id,
@@ -35,9 +64,19 @@ export async function notificationRoutes(app: FastifyInstance) {
       }),
     ]);
 
+    let nextCursor: string | null = null;
+    let notifications = items;
+
+    if (items.length > take) {
+      const nextItem = items[take];
+      nextCursor = nextItem.id;
+      notifications = items.slice(0, take);
+    }
+
     return reply.status(200).send({
       notifications,
       unreadCount,
+      nextCursor,
     });
   });
 

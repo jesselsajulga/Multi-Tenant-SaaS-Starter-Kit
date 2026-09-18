@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { DeleteWorkspaceModal } from "./DeleteWorkspaceModal";
 
 interface OrganizationSettingsFormProps {
   organizationId: string;
@@ -24,8 +25,40 @@ export function OrganizationSettingsForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const isOwner = role === "OWNER";
+
+  const handleDeleteSuccess = async () => {
+    setIsDeleteModalOpen(false);
+
+    try {
+      // Query remaining organizations for user
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const res = await fetch(`${API_URL}/organizations`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const remaining = (data.organizations || []).filter(
+          (o: any) => o.organization.id !== organizationId
+        );
+
+        if (remaining.length > 0) {
+          router.push(`/organizations/${remaining[0].organization.id}/dashboard`);
+          router.refresh();
+          return;
+        }
+      }
+    } catch {
+      // Fallback to /organizations
+    }
+
+    router.push("/organizations");
+    router.refresh();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,6 +182,43 @@ export function OrganizationSettingsForm({
           </div>
         </CardContent>
       </Card>
+
+      {/* Danger Zone Section (OWNER only) */}
+      {isOwner && (
+        <Card className="border-red-200">
+          <CardHeader>
+            <CardTitle className="text-red-600">Danger Zone</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium text-zinc-900">Delete workspace</h4>
+                <p className="text-xs text-zinc-500 max-w-md leading-relaxed">
+                  Permanently delete this workspace and all of its projects, members, invitations, and associated data. This action cannot be undone.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="shrink-0 bg-red-600 hover:bg-red-700 text-white"
+              >
+                Delete Workspace
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isOwner && (
+        <DeleteWorkspaceModal
+          open={isDeleteModalOpen}
+          onOpenChange={setIsDeleteModalOpen}
+          organizationId={organizationId}
+          organizationName={name}
+          onSuccess={handleDeleteSuccess}
+        />
+      )}
     </div>
   );
 }

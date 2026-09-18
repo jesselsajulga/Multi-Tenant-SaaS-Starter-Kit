@@ -3,6 +3,7 @@ import { prisma } from "../db";
 import { authenticateRequest } from "../auth/authenticate";
 import { authorizeOrganizationAccess } from "../auth/authorize";
 import { createAuditLog } from "../audit/logger";
+import { createNotification } from "../notifications/service";
 import { addMemberSchema } from "./schema";
 
 export async function memberRoutes(app: FastifyInstance) {
@@ -142,27 +143,42 @@ export async function memberRoutes(app: FastifyInstance) {
       }
     }
 
-    await prisma.organizationMember.delete({
-      where: {
-        organizationId_userId: {
+    await prisma.$transaction(async (tx) => {
+      // Atomic conditional delete to prevent double-delete race conditions
+      const deleteResult = await tx.organizationMember.deleteMany({
+        where: {
           organizationId,
           userId: targetUserId
         }
-      }
-    });
+      });
 
-    // Record audit log for member removal
-    await createAuditLog(prisma, {
-      organizationId,
-      actorId: auth.user.id,
-      actorSnapshot: { email: auth.user.email },
-      action: "MEMBER_REMOVED",
-      resourceType: "OrganizationMember",
-      resourceId: targetUserId,
-      metadata: {
-        removedMemberEmail: targetMembership.user.email,
-        removedMemberRole: targetMembership.role,
-        organizationName: targetMembership.organization.name,
+      if (deleteResult.count === 0) {
+        throw new Error("ALREADY_REMOVED");
+      }
+
+      // Record audit log for member removal
+      await createAuditLog(tx, {
+        organizationId,
+        actorId: auth.user.id,
+        actorSnapshot: { email: auth.user.email },
+        action: "MEMBER_REMOVED",
+        resourceType: "OrganizationMember",
+        resourceId: targetUserId,
+        metadata: {
+          removedMemberEmail: targetMembership.user.email,
+          removedMemberRole: targetMembership.role,
+          organizationName: targetMembership.organization.name,
+        }
+      });
+
+      // Dispatch notification to removed member (skip if voluntary self-removal)
+      if (auth.user.id !== targetUserId) {
+        await createNotification(tx, {
+          userId: targetUserId,
+          type: "WORKSPACE_MEMBER_REMOVED",
+          title: "Access Removed",
+          message: `You have been removed from ${targetMembership.organization.name} by ${auth.user.email}.`,
+        });
       }
     });
 

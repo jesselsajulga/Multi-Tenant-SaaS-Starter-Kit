@@ -49,27 +49,65 @@ export function clearWorkspaceSpecificData(organizationId?: string) {
   }
 }
 
+export interface WorkspaceEjectionParams {
+  organizationId?: string;
+  workspaceName?: string;
+  reason: "REVOKED" | "DELETED";
+}
+
 /**
  * Executes a client-side ejection to /organizations with revocation feedback.
  */
 export function handleWorkspaceAccessRevoked(options?: EjectionOptions) {
+  return handleWorkspaceEjection({
+    organizationId: options?.organizationId,
+    workspaceName: options?.workspaceName,
+    reason: "REVOKED",
+  });
+}
+
+/**
+ * Executes a client-side ejection to /organizations with deletion feedback.
+ */
+export function handleWorkspaceDeleted(options?: EjectionOptions) {
+  return handleWorkspaceEjection({
+    organizationId: options?.organizationId,
+    workspaceName: options?.workspaceName,
+    reason: "DELETED",
+  });
+}
+
+/**
+ * Generalized workspace ejection handler for both revoked access and deleted workspaces.
+ */
+export function handleWorkspaceEjection(params: WorkspaceEjectionParams) {
   if (typeof window === "undefined") return;
 
-  const { organizationId, workspaceName } = options || {};
+  const { organizationId, workspaceName, reason } = params;
 
   if (organizationId) {
     clearWorkspaceSpecificData(organizationId);
   }
 
   const name = workspaceName || "this workspace";
-  try {
-    window.sessionStorage.setItem("revoked_workspace_flash", name);
-  } catch {
-    // Ignore storage issues
+  const queryParams = new URLSearchParams();
+
+  if (reason === "DELETED") {
+    try {
+      window.sessionStorage.setItem("deleted_workspace_flash", name);
+    } catch {
+      // Ignore storage issues
+    }
+    queryParams.set("deleted", "1");
+  } else {
+    try {
+      window.sessionStorage.setItem("revoked_workspace_flash", name);
+    } catch {
+      // Ignore storage issues
+    }
+    queryParams.set("revoked", "1");
   }
 
-  const queryParams = new URLSearchParams();
-  queryParams.set("revoked", "1");
   if (workspaceName) {
     queryParams.set("workspace", workspaceName);
   }

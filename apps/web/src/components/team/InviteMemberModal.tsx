@@ -158,8 +158,13 @@ export function InviteMemberModal({ organizationId }: InviteMemberModalProps) {
             </Button>
             <Button
               type="submit"
+              variant={success ? "outline" : "default"}
               disabled={loading || success}
-              className={success ? "!bg-green-600 hover:!bg-green-600 !text-white !opacity-100" : ""}
+              className={
+                success
+                  ? "!bg-transparent !border-2 !border-green-600 !text-green-600 hover:!bg-transparent !opacity-100 cursor-default"
+                  : ""
+              }
             >
               {success ? (
                 <>

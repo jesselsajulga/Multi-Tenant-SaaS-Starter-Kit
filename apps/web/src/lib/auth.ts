@@ -78,7 +78,7 @@ export async function getOrganizationContext(organizationId: string): Promise<Or
 
 export async function getOrganizationContextWithStatus(
   organizationId: string
-): Promise<{ context: OrganizationContext | null; revoked?: boolean }> {
+): Promise<{ context: OrganizationContext | null; revoked?: boolean; deleted?: boolean }> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session");
 
@@ -95,15 +95,16 @@ export async function getOrganizationContextWithStatus(
     });
 
     if (!res.ok) {
-      if (res.status === 403) {
-        try {
-          const errData = await res.json();
-          if (errData.code === "WORKSPACE_ACCESS_REVOKED") {
-            return { context: null, revoked: true };
-          }
-        } catch {
-          // ignore json parse error
+      try {
+        const errData = await res.json();
+        if (errData.code === "WORKSPACE_ACCESS_REVOKED") {
+          return { context: null, revoked: true };
         }
+        if (errData.code === "WORKSPACE_DELETED") {
+          return { context: null, deleted: true };
+        }
+      } catch {
+        // ignore json parse error
       }
       return { context: null };
     }
@@ -124,6 +125,9 @@ export async function requireOrganizationAccess(organizationId: string): Promise
   if (!result.context) {
     if (result.revoked) {
       redirect("/organizations?revoked=1");
+    }
+    if (result.deleted) {
+      redirect("/organizations?deleted=1");
     }
     redirect("/organizations"); // Unauthorized or forbidden -> kick them to the picker
   }

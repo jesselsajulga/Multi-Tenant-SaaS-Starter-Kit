@@ -138,4 +138,118 @@ export async function organizationRoutes(app: FastifyInstance) {
 
     return reply.status(200).send({ organization: updatedOrg });
   });
+
+  // DELETE /organizations/:id (OWNER only)
+  app.delete("/organizations/:id", async (request, reply) => {
+    const auth = await authenticateRequest(request);
+    if (!auth) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const { id } = request.params as { id: string };
+
+    // Centralized RBAC authorization check requiring OWNER
+    const access = await authorizeOrganizationAccess(id, auth.user.id, "OWNER");
+    if (access.error) {
+      return reply.status(access.status || 403).send({ 
+        error: access.error,
+        code: access.code 
+      });
+    }
+
+    // Verify organization exists
+    const org = await prisma.organization.findUnique({
+      where: { id },
+      include: { subscription: true }
+    });
+
+    if (!org) {
+      return reply.status(404).send({ error: "Organization not found" });
+    }
+
+    // Stripe active subscription cancellation
+    if (org.subscription?.stripeSubscriptionId) {
+      const activeStatuses = ["active", "trialing", "past_due", "unpaid"];
+      if (!org.subscription.status || activeStatuses.includes(org.subscription.status)) {
+        try {
+          const { stripe } = await import("../stripe/client");
+          await stripe.subscriptions.cancel(org.subscription.stripeSubscriptionId);
+        } catch (stripeErr: any) {
+          // Allow deletion if subscription was already deleted or not found in Stripe
+          const isNotFoundOrCanceled = 
+            stripeErr?.code === "resource_missing" || 
+            stripeErr?.statusCode === 404 ||
+            stripeErr?.message?.includes("No such subscription");
+
+          if (!isNotFoundOrCanceled) {
+            app.log.error({ err: stripeErr }, "Failed to cancel active Stripe subscription during workspace deletion");
+            return reply.status(500).send({ 
+              error: "Failed to cancel active Stripe subscription. Workspace deletion aborted to prevent billing errors." 
+            });
+          }
+        }
+      }
+    }
+
+    // Capture workspace metadata and all active members BEFORE deletion cascade
+    const membersBeforeDeletion = await prisma.organizationMember.findMany({
+      where: { organizationId: id },
+      select: { userId: true },
+    });
+
+    const recipientUserIds = membersBeforeDeletion
+      .map((m) => m.userId)
+      .filter((uid) => uid !== auth.user.id);
+
+    const workspaceName = org.name;
+    const ownerEmail = auth.user.email;
+
+    // Atomic transaction for organization destruction
+    await prisma.$transaction(async (tx) => {
+      // Re-validate in-transaction that user is still OWNER
+      const membership = await tx.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: id,
+            userId: auth.user.id,
+          },
+        },
+      });
+
+      if (!membership || membership.role !== "OWNER") {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      // Set transaction-scoped setting allowing AuditLog deletion
+      await tx.$executeRaw`SELECT set_config('app.allow_organization_deletion', 'true', TRUE);`;
+
+      // Cascade delete the Organization
+      await tx.organization.delete({
+        where: { id },
+      });
+    });
+
+    // POST-COMMIT: Dispatch WORKSPACE_DELETED notifications with isolated failure boundary
+    // Deletion is authoritative and must not be rolled back if notification delivery encounters issues
+    try {
+      const { dispatchWorkspaceDeletedNotifications } = await import("../notifications/service.js");
+      await dispatchWorkspaceDeletedNotifications(
+        prisma,
+        {
+          organizationId: id,
+          workspaceName,
+          ownerEmail,
+          recipientUserIds,
+        },
+        app.log
+      );
+    } catch (notifErr) {
+      app.log.error(
+        { err: notifErr, organizationId: id },
+        "Error in post-commit dispatch of workspace deletion notifications"
+      );
+    }
+
+    return reply.status(204).send();
+  });
 }

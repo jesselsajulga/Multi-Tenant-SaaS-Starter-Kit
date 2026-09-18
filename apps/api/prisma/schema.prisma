@@ -197,8 +197,8 @@ model AuditLog {
   metadata       Json?    // Snapshot data (must include actor details for user events)
   createdAt      DateTime @default(now())
 
-  // Restrict hard-deletion to preserve audit history
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  // Organization foreign key with cascade on organization deletion
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([actorId])
